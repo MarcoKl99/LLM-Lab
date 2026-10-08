@@ -3,6 +3,8 @@ name = "llm-lab"
 version = "0.0.1"
 description = "Building a decoder-only language model from scratch, one experiment at a time."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "torch",

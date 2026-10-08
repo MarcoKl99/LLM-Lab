@@ -169,3 +169,7 @@ optimizer/schedule, trainer (including resume), generation, and both models
 This project is deliberately incremental and scientific: small experiments,
 explicit configs, reproducible artifacts, and understanding before optimizing.
 See [`OPENCODE.md`](OPENCODE.md) for the full guiding principles.
+
+## License 📄
+
+Released under the [MIT License](LICENSE).
