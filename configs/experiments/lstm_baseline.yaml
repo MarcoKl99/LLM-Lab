@@ -29,4 +29,5 @@ training:
   eval_batches: 20
   log_interval: 50
   grad_clip: 1.0
-  checkpoint_dir: artifacts/runs/lstm
+  checkpoint_dir: artifacts/runs
+  resume: true/lstm

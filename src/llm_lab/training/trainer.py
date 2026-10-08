@@ -17,6 +17,7 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from llm_lab.model.base import LanguageModel
 from llm_lab.utils.logging import Logger
@@ -85,17 +86,38 @@ class Trainer:
         max_steps: int,
         eval_interval: int,
         log_interval: int = 10,
+        progress: bool = True,
+        resume: bool = False,
     ) -> dict[str, list[float]]:
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.model.train()
-        batches = _infinite_batches(self.train_loader)
         history: dict[str, list[float]] = {
             "train_loss": [],
             "val_loss": [],
             "val_perplexity": [],
         }
 
-        for step in range(1, max_steps + 1):
+        start_step = 1
+        if resume:
+            checkpoint_path = self.run_dir / "latest.pt"
+            if checkpoint_path.exists():
+                start_step = self.load_checkpoint(checkpoint_path) + 1
+                print(f"resumed from {checkpoint_path} at step {start_step - 1}")
+
+        if start_step > max_steps:
+            print(f"checkpoint already at step {start_step - 1} (max_steps={max_steps})")
+            return history
+
+        self.model.train()
+        batches = _infinite_batches(self.train_loader)
+        bar = tqdm(
+            range(start_step, max_steps + 1),
+            initial=start_step - 1,
+            total=max_steps,
+            desc=self.run_dir.name,
+            unit="step",
+            disable=not progress,
+        )
+        for step in bar:
             x, y = next(batches)
             x, y = x.to(self.device), y.to(self.device)
 
@@ -108,10 +130,11 @@ class Trainer:
             self.scheduler.step()
             history["train_loss"].append(loss.item())
 
+            lr = self.scheduler.get_last_lr()[0]
+            bar.set_postfix(loss=f"{loss.item():.4f}", lr=f"{lr:.2e}")
+
             if step % log_interval == 0:
-                lr = self.scheduler.get_last_lr()[0]
                 self.logger.log(step, {"train/loss": loss.item(), "train/lr": lr})
-                print(f"step {step:>6} | loss {loss.item():.4f} | lr {lr:.2e}")
 
             if step % eval_interval == 0 or step == max_steps:
                 val_loss, val_perplexity = self.evaluate()
@@ -120,14 +143,24 @@ class Trainer:
                 self.logger.log(
                     step, {"val/loss": val_loss, "val/perplexity": val_perplexity}
                 )
-                print(f"         | val loss {val_loss:.4f} | ppl {val_perplexity:.2f}")
+                tqdm.write(
+                    f"step {step:>6} | val loss {val_loss:.4f} | ppl {val_perplexity:.2f}"
+                )
 
                 is_best = val_loss < self.best_val_loss
                 self.best_val_loss = min(self.best_val_loss, val_loss)
                 self._save_checkpoint(step, is_best=is_best)
 
-        self.logger.close()
         return history
+
+    def load_checkpoint(self, path: str | Path) -> int:
+        """Restore model/optimizer/scheduler state; return the saved step."""
+        checkpoint = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(checkpoint["model"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        self.scheduler.load_state_dict(checkpoint["scheduler"])
+        self.best_val_loss = checkpoint["best_val_loss"]
+        return int(checkpoint["step"])
 
     def _save_checkpoint(self, step: int, *, is_best: bool) -> None:
         state = {

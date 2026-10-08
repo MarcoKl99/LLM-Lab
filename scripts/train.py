@@ -7,12 +7,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import random
 from pathlib import Path
 
 import torch
+import yaml
 
-from llm_lab.config import load_config
+from llm_lab.config import flatten_config, load_config
 from llm_lab.data.dataset import build_dataloader
 from llm_lab.data.tokenizer import BPETokenizer
 from llm_lab.model.build import build_model
@@ -75,27 +77,42 @@ def main() -> None:
     )
 
     run_dir = Path(training["checkpoint_dir"]) / config["run_name"]
-    trainer = Trainer(
-        model,
-        optimizer,
-        scheduler,
-        train_loader,
-        val_loader,
-        Logger(run_dir / "tb"),
-        device=device,
-        run_dir=run_dir,
-        grad_clip=training.get("grad_clip"),
-        eval_batches=training.get("eval_batches"),
-    )
-
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"run: {config['run_name']}  device: {device}  params: {n_params:,}")
 
-    trainer.train(
-        max_steps=training["max_steps"],
-        eval_interval=training["eval_interval"],
-        log_interval=training.get("log_interval", 10),
-    )
+    with Logger(run_dir / "tb") as logger:
+        logger.log_text("config", yaml.safe_dump(config, sort_keys=False))
+        logger.log(0, {"model/num_parameters": n_params})
+
+        trainer = Trainer(
+            model,
+            optimizer,
+            scheduler,
+            train_loader,
+            val_loader,
+            logger,
+            device=device,
+            run_dir=run_dir,
+            grad_clip=training.get("grad_clip"),
+            eval_batches=training.get("eval_batches"),
+        )
+
+        print(f"run: {config['run_name']}  device: {device}  params: {n_params:,}")
+
+        trainer.train(
+            max_steps=training["max_steps"],
+            eval_interval=training["eval_interval"],
+            log_interval=training.get("log_interval", 10),
+            resume=training.get("resume", False),
+        )
+
+        best_val_loss = trainer.best_val_loss
+        logger.log_hparams(
+            flatten_config(config) | {"model.num_parameters": n_params},
+            {
+                "val_loss": best_val_loss,
+                "val_perplexity": math.exp(best_val_loss),
+            },
+        )
 
 
 if __name__ == "__main__":

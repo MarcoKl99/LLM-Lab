@@ -25,3 +25,16 @@ def test_logger_writes_event_file(tmp_path: Path) -> None:
     logger.close()
 
     assert any(log_dir.glob("events.out.tfevents.*"))
+
+
+def test_logger_logs_text_and_hparams(tmp_path: Path) -> None:
+    log_dir = tmp_path / "tb"
+    with Logger(log_dir) as logger:
+        logger.log_text("config", "model:\n  type: lstm\n")
+        logger.log(0, {"model/num_parameters": 123})
+        logger.log_hparams(
+            {"model.type": "lstm", "model.num_parameters": 123},
+            {"val_loss": 1.0, "val_perplexity": 2.7},
+        )
+
+    assert any(log_dir.rglob("events.out.tfevents.*"))

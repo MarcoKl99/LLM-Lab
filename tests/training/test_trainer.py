@@ -19,9 +19,11 @@ def _loader(vocab: int, n: int, context: int, batch_size: int) -> DataLoader:
     return DataLoader(TensorDataset(x, y), batch_size=batch_size)
 
 
-def _build_trainer(tmp_path: Path) -> tuple[Trainer, Path]:
+def _build_trainer(
+    tmp_path: Path, model: LSTMLanguageModel | None = None
+) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
-    model = LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
+    model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
     optimizer = build_optimizer(model, learning_rate=1e-2)
     scheduler = build_scheduler(
         optimizer, warmup_steps=2, max_steps=10, min_lr_ratio=0.1
@@ -46,7 +48,10 @@ def _build_trainer(tmp_path: Path) -> tuple[Trainer, Path]:
 def test_trainer_runs_and_records_history(tmp_path: Path) -> None:
     trainer, run_dir = _build_trainer(tmp_path)
 
-    history = trainer.train(max_steps=10, eval_interval=5, log_interval=5)
+    history = trainer.train(
+        max_steps=10, eval_interval=5, log_interval=5, progress=False
+    )
+    trainer.logger.close()
 
     assert len(history["train_loss"]) == 10
     assert len(history["val_loss"]) == 2
@@ -57,8 +62,51 @@ def test_trainer_runs_and_records_history(tmp_path: Path) -> None:
 
 def test_checkpoint_contains_model_state(tmp_path: Path) -> None:
     trainer, run_dir = _build_trainer(tmp_path)
-    trainer.train(max_steps=5, eval_interval=5, log_interval=5)
+    trainer.train(max_steps=5, eval_interval=5, log_interval=5, progress=False)
+    trainer.logger.close()
 
     checkpoint = torch.load(run_dir / "latest.pt")
     assert checkpoint["step"] == 5
     assert "model" in checkpoint
+
+
+def test_load_checkpoint_restores_model_state(tmp_path: Path) -> None:
+    trainer, run_dir = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, progress=False)
+    trainer.logger.close()
+    saved = torch.load(run_dir / "latest.pt")
+
+    fresh = LSTMLanguageModel(vocab_size=20, hidden_size=16, num_layers=1)
+    other, _ = _build_trainer(tmp_path, model=fresh)
+    step = other.load_checkpoint(run_dir / "latest.pt")
+    other.logger.close()
+
+    assert step == 5
+    for name, tensor in other.model.state_dict().items():
+        assert torch.equal(tensor, saved["model"][name])
+
+
+def test_train_resume_when_already_finished_is_noop(tmp_path: Path) -> None:
+    trainer, _ = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    resumed, _ = _build_trainer(tmp_path)
+    history = resumed.train(max_steps=5, eval_interval=5, progress=False, resume=True)
+    resumed.logger.close()
+
+    assert history["train_loss"] == []
+    assert history["val_loss"] == []
+
+
+def test_train_resumes_from_checkpoint(tmp_path: Path) -> None:
+    trainer, run_dir = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    resumed, _ = _build_trainer(tmp_path)
+    history = resumed.train(max_steps=8, eval_interval=8, progress=False, resume=True)
+    resumed.logger.close()
+
+    assert len(history["train_loss"]) == 3
+    assert (run_dir / "latest.pt").exists()
