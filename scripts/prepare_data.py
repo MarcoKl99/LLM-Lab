@@ -1,7 +1,7 @@
 """Prepare data for training: train a tokenizer and write token tensors.
 
 Usage:
-    uv run python scripts/prepare_data.py --config configs/data/tiny_shakespeare.yaml
+    uv run python scripts/prepare_data.py --config configs/experiments/lstm_baseline.yaml
 """
 
 from __future__ import annotations
@@ -23,16 +23,18 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
+    data = config["data"]
+
     result = prepare_data(
-        corpus=config["corpus"],
-        vocab_size=config["tokenizer"]["vocab_size"],
-        tokenizer_path=Path(config["tokenizer"]["output"]),
-        raw_dir=Path(config["raw_dir"]),
-        processed_dir=Path(config["processed_dir"]),
-        val_fraction=config["val_fraction"],
+        corpus=data["corpus"],
+        vocab_size=data["tokenizer"]["vocab_size"],
+        tokenizer_path=Path(data["tokenizer"]["output"]),
+        raw_dir=Path(data["raw_dir"]),
+        processed_dir=Path(data["processed_dir"]),
+        val_fraction=data["val_fraction"],
     )
 
-    print(f"corpus:       {config['corpus']}")
+    print(f"corpus:       {data['corpus']}")
     print(f"chars:        {result.chars:,}")
     print(f"vocab_size:   {result.vocab_size:,}")
     print(f"train tokens: {result.train_tokens:,}")

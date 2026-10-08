@@ -1,8 +1,0 @@
-corpus: tiny_shakespeare
-raw_dir: data/raw
-processed_dir: data/processed/tiny_shakespeare
-val_fraction: 0.1
-
-tokenizer:
-  vocab_size: 1024
-  output: artifacts/tokenizer/tiny_shakespeare_bpe.json
