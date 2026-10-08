@@ -92,7 +92,11 @@ def main() -> None:
         shuffle=False,
     )
 
-    model = build_model(config["model"], vocab_size=tokenizer.vocab_size)
+    model = build_model(
+        config["model"],
+        vocab_size=tokenizer.vocab_size,
+        context_window=data["context_window"],
+    )
 
     optimizer = build_optimizer(
         model,

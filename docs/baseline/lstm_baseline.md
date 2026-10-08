@@ -134,3 +134,9 @@ uv run tensorboard --logdir artifacts/runs
 ```
 
 Config: [`configs/experiments/lstm_baseline.yaml`](../../configs/experiments/lstm_baseline.yaml)
+
+## Related
+
+- [`gpt_baseline.md`](gpt_baseline.md) — the decoder-only transformer baseline,
+  which reaches lower validation loss (3.209 vs. 3.255) with ~41% fewer
+  parameters on the same data.
