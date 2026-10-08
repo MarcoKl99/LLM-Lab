@@ -9,7 +9,9 @@ from __future__ import annotations
 import argparse
 import math
 import random
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import torch
 import yaml
@@ -17,6 +19,8 @@ import yaml
 from llm_lab.config import flatten_config, load_config
 from llm_lab.data.dataset import build_dataloader
 from llm_lab.data.tokenizer import BPETokenizer
+from llm_lab.generation import generate
+from llm_lab.model.base import LanguageModel
 from llm_lab.model.build import build_model
 from llm_lab.training.optimizer import build_optimizer, build_scheduler
 from llm_lab.training.trainer import Trainer
@@ -33,6 +37,32 @@ def parse_args() -> argparse.Namespace:
 def set_seed(seed: int) -> None:
     random.seed(seed)
     torch.manual_seed(seed)
+
+
+def build_sample_fn(
+    config: dict[str, Any],
+    model: LanguageModel,
+    tokenizer: BPETokenizer,
+    logger: Logger,
+    device: torch.device,
+) -> Callable[[int], None]:
+    """Return a callback that logs a generated sample to TensorBoard at each eval."""
+    sampling = config["sampling"]
+
+    def sample_fn(step: int) -> None:
+        text = generate(
+            model,
+            tokenizer,
+            sampling["prompt"],
+            max_new_tokens=sampling["max_new_tokens"],
+            context_window=config["data"]["context_window"],
+            temperature=sampling.get("temperature", 1.0),
+            top_k=sampling.get("top_k"),
+            device=device,
+        )
+        logger.log_text("samples", f"step {step}\n\n{text}", step)
+
+    return sample_fn
 
 
 def main() -> None:
@@ -83,6 +113,12 @@ def main() -> None:
         logger.log_text("config", yaml.safe_dump(config, sort_keys=False))
         logger.log(0, {"model/num_parameters": n_params})
 
+        sample_fn = (
+            build_sample_fn(config, model, tokenizer, logger, device)
+            if "sampling" in config
+            else None
+        )
+
         trainer = Trainer(
             model,
             optimizer,
@@ -94,6 +130,7 @@ def main() -> None:
             run_dir=run_dir,
             grad_clip=training.get("grad_clip"),
             eval_batches=training.get("eval_batches"),
+            sample_fn=sample_fn,
         )
 
         print(f"run: {config['run_name']}  device: {device}  params: {n_params:,}")

@@ -8,7 +8,7 @@ through exactly the same code.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import torch
@@ -46,6 +46,7 @@ class Trainer:
         run_dir: Path,
         grad_clip: float | None = None,
         eval_batches: int | None = None,
+        sample_fn: Callable[[int], None] | None = None,
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
@@ -57,6 +58,7 @@ class Trainer:
         self.run_dir = Path(run_dir)
         self.grad_clip = grad_clip
         self.eval_batches = eval_batches
+        self.sample_fn = sample_fn
         self.vocab_size = model.vocab_size
         self.best_val_loss = float("inf")
 
@@ -150,6 +152,9 @@ class Trainer:
                 is_best = val_loss < self.best_val_loss
                 self.best_val_loss = min(self.best_val_loss, val_loss)
                 self._save_checkpoint(step, is_best=is_best)
+
+                if self.sample_fn is not None:
+                    self.sample_fn(step)
 
         return history
 

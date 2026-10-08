@@ -30,4 +30,10 @@ training:
   log_interval: 50
   grad_clip: 1.0
   checkpoint_dir: artifacts/runs
-  resume: true/lstm
+  resume: true
+
+sampling:
+  prompt: "ROMEO: "
+  max_new_tokens: 200
+  temperature: 0.8
+  top_k: 50

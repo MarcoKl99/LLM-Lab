@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import torch
@@ -20,7 +21,9 @@ def _loader(vocab: int, n: int, context: int, batch_size: int) -> DataLoader:
 
 
 def _build_trainer(
-    tmp_path: Path, model: LSTMLanguageModel | None = None
+    tmp_path: Path,
+    model: LSTMLanguageModel | None = None,
+    sample_fn: Callable[[int], None] | None = None,
 ) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
     model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
@@ -41,6 +44,7 @@ def _build_trainer(
         run_dir=run_dir,
         grad_clip=1.0,
         eval_batches=2,
+        sample_fn=sample_fn,
     )
     return trainer, run_dir
 
@@ -84,6 +88,15 @@ def test_load_checkpoint_restores_model_state(tmp_path: Path) -> None:
     assert step == 5
     for name, tensor in other.model.state_dict().items():
         assert torch.equal(tensor, saved["model"][name])
+
+
+def test_trainer_invokes_sample_fn_at_evals(tmp_path: Path) -> None:
+    calls: list[int] = []
+    trainer, _ = _build_trainer(tmp_path, sample_fn=calls.append)
+    trainer.train(max_steps=10, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    assert calls == [5, 10]
 
 
 def test_train_resume_when_already_finished_is_noop(tmp_path: Path) -> None:
