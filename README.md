@@ -1,5 +1,7 @@
 # LLM-Lab 👨‍🔬
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Building a decoder-only language model from scratch — one small, reproducible
 experiment at a time — to understand how **data, architecture, optimization and
 compute** turn random parameters into a useful language model.
