@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 import torch
 
-from llm_lab.data.dataset import LMDataset, encode_corpus, split_train_val
+from llm_lab.data.dataset import (
+    LMDataset,
+    build_dataloader,
+    encode_corpus,
+    split_train_val,
+)
 from llm_lab.data.tokenizer import BPETokenizer
 
 
@@ -89,6 +94,24 @@ def test_getitem_out_of_range_raises() -> None:
 def test_negative_index_supported() -> None:
     dataset = LMDataset(torch.arange(10), context_window=4)
     assert torch.equal(dataset[-1][0], dataset[len(dataset) - 1][0])
+
+
+def test_dataloader_batch_shapes() -> None:
+    loader = build_dataloader(torch.arange(10), context_window=4, batch_size=3)
+    xb, yb = next(iter(loader))
+    assert xb.shape == (3, 4)
+    assert yb.shape == (3, 4)
+
+
+def test_dataloader_target_is_shifted_input() -> None:
+    loader = build_dataloader(torch.arange(10), context_window=4, batch_size=2)
+    xb, yb = next(iter(loader))
+    assert torch.equal(yb[:, :-1], xb[:, 1:])
+
+
+def test_dataloader_number_of_batches() -> None:
+    loader = build_dataloader(torch.arange(10), context_window=4, batch_size=4)
+    assert len(loader) == 2
 
 
 def test_encode_corpus_matches_tokenizer() -> None:

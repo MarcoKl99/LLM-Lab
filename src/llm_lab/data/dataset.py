@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from llm_lab.data.tokenizer import BPETokenizer
 
@@ -62,3 +62,18 @@ class LMDataset(Dataset[tuple[Tensor, Tensor]]):
         x = self.tokens[index : index + self.context_window]
         y = self.tokens[index + 1 : index + self.context_window + 1]
         return x, y
+
+
+def build_dataloader(
+    tokens: Tensor,
+    context_window: int,
+    batch_size: int,
+    shuffle: bool = False,
+) -> DataLoader[tuple[Tensor, Tensor]]:
+    """Wrap ``tokens`` in an :class:`LMDataset` and a :class:`DataLoader`.
+
+    Set ``shuffle=True`` for the training split and leave it ``False`` for
+    validation.
+    """
+    dataset = LMDataset(tokens, context_window=context_window)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
