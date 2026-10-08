@@ -1,0 +1,31 @@
+[project]
+name = "llm-lab"
+version = "0.0.1"
+description = "Building a decoder-only language model from scratch, one experiment at a time."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "tensorboard",
+    "datasets",
+    "tokenizers",
+    "pyyaml",
+]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_lab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
