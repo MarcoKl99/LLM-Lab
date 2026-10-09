@@ -115,6 +115,8 @@ def main() -> None:
         Path(training["checkpoint_dir"]) / config["experiment"] / config["run_name"]
     )
     n_params = sum(p.numel() for p in model.parameters())
+    tokens_per_step = training["batch_size"] * data["context_window"]
+    unique_train_tokens = len(train_tokens)
 
     with Logger(run_dir) as logger:
         logger.log_text("config", yaml.safe_dump(config, sort_keys=False))
@@ -141,6 +143,8 @@ def main() -> None:
             sample_fn=sample_fn,
             early_stop_patience=early_stopping.get("patience"),
             early_stop_min_delta=early_stopping.get("min_delta", 0.0),
+            tokens_per_step=tokens_per_step,
+            unique_train_tokens=unique_train_tokens,
         )
 
         print(

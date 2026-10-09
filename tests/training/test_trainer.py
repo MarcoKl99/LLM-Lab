@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -12,6 +13,7 @@ from llm_lab.model.lstm import LSTMLanguageModel
 from llm_lab.training.optimizer import build_optimizer, build_scheduler
 from llm_lab.training.trainer import Trainer
 from llm_lab.utils.logging import Logger
+from llm_lab.utils.tensorboard import read_scalars
 
 
 def _loader(vocab: int, n: int, context: int, batch_size: int) -> DataLoader:
@@ -26,6 +28,8 @@ def _build_trainer(
     sample_fn: Callable[[int], None] | None = None,
     early_stop_patience: int | None = None,
     early_stop_min_delta: float = 0.0,
+    tokens_per_step: int | None = None,
+    unique_train_tokens: int | None = None,
 ) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
     model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
@@ -49,6 +53,8 @@ def _build_trainer(
         sample_fn=sample_fn,
         early_stop_patience=early_stop_patience,
         early_stop_min_delta=early_stop_min_delta,
+        tokens_per_step=tokens_per_step,
+        unique_train_tokens=unique_train_tokens,
     )
     return trainer, run_dir
 
@@ -135,6 +141,33 @@ def test_train_resume_when_already_finished_is_noop(tmp_path: Path) -> None:
 
     assert history["train_loss"] == []
     assert history["val_loss"] == []
+
+
+def test_trainer_logs_throughput_and_compute_metrics(tmp_path: Path) -> None:
+    # batch_size 8 * context 8 = 64 tokens/step
+    trainer, _ = _build_trainer(
+        tmp_path, tokens_per_step=64, unique_train_tokens=100
+    )
+    trainer.train(max_steps=10, eval_interval=5, log_interval=5, progress=False)
+    trainer.logger.close()
+
+    scalars = read_scalars(tmp_path / "tb")
+    assert scalars["throughput/tokens_seen"][-1] == (10, 640.0)
+    step, epochs = scalars["throughput/epochs"][-1]
+    assert step == 10
+    assert epochs == pytest.approx(6.4, abs=1e-3)
+    assert "throughput/tokens_per_sec" in scalars
+    assert "compute/flops" in scalars
+
+
+def test_trainer_skips_throughput_metrics_when_unspecified(tmp_path: Path) -> None:
+    trainer, _ = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, log_interval=5, progress=False)
+    trainer.logger.close()
+
+    scalars = read_scalars(tmp_path / "tb")
+    assert "throughput/tokens_seen" not in scalars
+    assert "compute/flops" not in scalars
 
 
 def test_train_resumes_from_checkpoint(tmp_path: Path) -> None:

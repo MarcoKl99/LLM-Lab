@@ -8,6 +8,7 @@ through exactly the same code.
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -49,6 +50,8 @@ class Trainer:
         sample_fn: Callable[[int], None] | None = None,
         early_stop_patience: int | None = None,
         early_stop_min_delta: float = 0.0,
+        tokens_per_step: int | None = None,
+        unique_train_tokens: int | None = None,
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
@@ -65,10 +68,42 @@ class Trainer:
         self.early_stop_min_delta = early_stop_min_delta
         self.vocab_size = model.vocab_size
         self.best_val_loss = float("inf")
+        self.tokens_per_step = tokens_per_step
+        self.unique_train_tokens = unique_train_tokens
+        self.n_params = sum(p.numel() for p in self.model.parameters())
 
     def _loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         logits = self.model(x)
         return F.cross_entropy(logits.reshape(-1, self.vocab_size), y.reshape(-1))
+
+    def _progress_metrics(
+        self,
+        step: int,
+        start_step: int,
+        loss: float,
+        lr: float,
+        start_time: float,
+    ) -> dict[str, float]:
+        """Scalars logged each ``log_interval``: loss/LR plus scaling accounting.
+
+        ``tokens_seen`` and ``flops`` are cumulative over the whole run (so they
+        are correct across resumes); throughput is measured for this session.
+        FLOPs use the ``6 * N * D`` estimate with ``N`` = total parameters.
+        """
+        metrics: dict[str, float] = {"train/loss": loss, "train/lr": lr}
+        if self.tokens_per_step is None:
+            return metrics
+
+        tokens_seen = step * self.tokens_per_step
+        session_tokens = (step - start_step + 1) * self.tokens_per_step
+        elapsed = time.perf_counter() - start_time
+        metrics["throughput/tokens_seen"] = float(tokens_seen)
+        metrics["throughput/tokens_per_sec"] = session_tokens / elapsed
+        metrics["throughput/elapsed_seconds"] = elapsed
+        metrics["compute/flops"] = float(6 * self.n_params * tokens_seen)
+        if self.unique_train_tokens:
+            metrics["throughput/epochs"] = tokens_seen / self.unique_train_tokens
+        return metrics
 
     @torch.no_grad()
     def evaluate(self) -> tuple[float, float]:
@@ -116,6 +151,7 @@ class Trainer:
         self.model.train()
         batches = _infinite_batches(self.train_loader)
         evals_without_improvement = 0
+        start_time = time.perf_counter()
         bar = tqdm(
             range(start_step, max_steps + 1),
             initial=start_step - 1,
@@ -141,7 +177,12 @@ class Trainer:
             bar.set_postfix(loss=f"{loss.item():.4f}", lr=f"{lr:.2e}")
 
             if step % log_interval == 0:
-                self.logger.log(step, {"train/loss": loss.item(), "train/lr": lr})
+                self.logger.log(
+                    step,
+                    self._progress_metrics(
+                        step, start_step, loss.item(), lr, start_time
+                    ),
+                )
 
             if step % eval_interval == 0 or step == max_steps:
                 val_loss, val_perplexity = self.evaluate()
