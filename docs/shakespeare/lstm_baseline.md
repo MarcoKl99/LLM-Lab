@@ -1,7 +1,7 @@
 # Baseline: LSTM Language Model
 
-**Run name:** `lstm_baseline`
-**Date:** 2026-10-08
+**Run name:** `baseline/lstm`
+**Date:** 2026-10-09
 **Status:** complete (2000 / 2000 steps)
 
 ## Purpose
@@ -44,20 +44,20 @@ compared against a real number.
 
 | Metric | Start | End (step 2000) |
 |---|---|---|
-| Train loss | 5.727 | 2.878 |
-| Val loss | 4.407 (step 200) | **3.255** |
-| Val perplexity | 82.0 | **25.9** |
+| Train loss | 5.708 | 2.874 |
+| Val loss | 4.399 (step 200) | **3.233** |
+| Val perplexity | 81.4 | **25.4** |
 
-Best validation loss: **3.2549** (perplexity **25.92**), reached at the final
+Best validation loss: **3.2333** (perplexity **25.36**), reached at the final
 evaluation — the model was still improving and had not yet plateaued.
 
 ### Validation loss over training
 
 | Step | 200 | 400 | 600 | 800 | 1000 | 1200 | 1400 | 1600 | 1800 | 2000 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Val loss | 4.407 | 3.906 | 3.591 | 3.452 | 3.379 | 3.323 | 3.307 | 3.259 | 3.264 | 3.255 |
+| Val loss | 4.399 | 3.900 | 3.570 | 3.467 | 3.350 | 3.293 | 3.259 | 3.264 | 3.235 | 3.233 |
 
-Train loss tail: 3.077 (1800) → 3.056 (1850) → 2.930 (1900) → 2.926 (1950) → 2.878 (2000).
+Train loss tail: 2.929 (1800) → 2.989 (1850) → 2.800 (1900) → 2.824 (1950) → 2.874 (2000).
 
 ### Training curves
 
@@ -72,36 +72,57 @@ Prompt: `ROMEO: `, `temperature = 0.8`, `top_k = 50`.
 **Step 200 (early) — gibberish:**
 
 ```
-ROMEO: Thar you not starre,
-And eir me, and the lord?
+ROMEO: Tharch'd,
+Shall a the ealt, and the lord?
 
-SIO:
+SORK:
 
-Mad:
-O would to make, go, it is the stow:
+CORIOLANUS:
+Thou woip, I, it is the stpreuss:
+In and jated and the moes of the the vests,
+That cirty me a swartmfiined,
+Which
+ten a mutstins, to he drapy?
+
+First Mord:
+Then, I'll my I have gried; let a bole
+To cpricey of his linge, let?
+Your know so eand'd to tins me!
+
+DUKE VINCENTIO:
+Pien, his faceful be, for I was her giy,
+And, I be not ccvest. I'll make a lord,
+Dity
 ```
 
 **Step 2000 (final) — recognizable pseudo-Shakespeare:**
 
 ```
-ROMEO: Nature is't,
-Because I promvour'd body, and to tender.
+ROMEO: He were I am
+They shall be spary to the volts of you,
+And every man the dephese of fit and gok,
+And yet he had curses for the icile, and all
+As 'twere cracking in this, and infortroy,
+And once more accrance of his hands.
 
-FLORIZEL:
-The daudio's infice, you have a publish deny
-Turn forbider than forth thousand majesty.
+First Gentleman:
+What is the devil: I would not be divanted.
 
-GLOUCESTER:
-Nay, therefore, my father.
-...
-FRIAR LAURENCE:
-Sinsheat you the broath doth wonder ten;
-His grace's wish,
+HENRY BOLINGBROKE:
+Tight, we may read;
+I am a weddle wale.
+
+Second Servingman:
+If I be carrusted in a mercy:
+I may not sleep, and not a found of all.
+
+MENENIUS:
+Speak, messenger
 ```
 
 By step 2000 the model has learned blank-verse line structure,
-character-name formatting, and a real vocabulary (`because`, `body`,
-`publish`, `majesty`, `father`).
+character-name formatting, and a real vocabulary (`devil`, `mercy`,
+`sleep`, `messenger`).
 
 ## Observations
 
@@ -110,16 +131,16 @@ character-name formatting, and a real vocabulary (`because`, `body`,
   and generation.
 - Validation loss decreased monotonically and had not plateaued, so the baseline
   is **compute-limited**, not capacity-limited. More steps would likely help.
-- Train loss (2.878) sits below val loss (3.255) by ~0.38 nats — a mild gap,
+- Train loss (2.874) sits below val loss (3.233) by ~0.36 nats — a mild gap,
   expected for a model of this size on ~0.4M training tokens.
 
 ## Artifacts
 
 ```
-artifacts/runs/lstm_baseline/
-├── best.pt      # best validation loss checkpoint
-├── latest.pt    # last checkpoint (step 2000)
-└── tb/          # TensorBoard logs (scalars, config, samples, hparams)
+artifacts/runs/baseline/lstm/
+├── best.pt                  # best validation loss checkpoint
+├── latest.pt                # last checkpoint (step 2000)
+└── events.out.tfevents.*    # TensorBoard logs (scalars, config, samples, hparams)
 ```
 
 Tokenizer: `artifacts/tokenizer/tiny_shakespeare_bpe.json`
@@ -138,5 +159,5 @@ Config: [`configs/experiments/lstm_baseline.yaml`](../../configs/experiments/lst
 ## Related
 
 - [`gpt_baseline.md`](gpt_baseline.md) — the decoder-only transformer baseline,
-  which reaches lower validation loss (3.209 vs. 3.255) with ~41% fewer
+  which reaches lower validation loss (3.216 vs. 3.233) with ~41% fewer
   parameters on the same data.

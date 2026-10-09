@@ -110,10 +110,12 @@ def main() -> None:
         min_lr_ratio=training["min_lr_ratio"],
     )
 
-    run_dir = Path(training["checkpoint_dir"]) / config["run_name"]
+    run_dir = (
+        Path(training["checkpoint_dir"]) / config["experiment"] / config["run_name"]
+    )
     n_params = sum(p.numel() for p in model.parameters())
 
-    with Logger(run_dir / "tb") as logger:
+    with Logger(run_dir) as logger:
         logger.log_text("config", yaml.safe_dump(config, sort_keys=False))
         logger.log(0, {"model/num_parameters": n_params})
 
@@ -140,22 +142,16 @@ def main() -> None:
             early_stop_min_delta=early_stopping.get("min_delta", 0.0),
         )
 
-        print(f"run: {config['run_name']}  device: {device}  params: {n_params:,}")
+        print(
+            f"run: {config['experiment']}/{config['run_name']}  "
+            f"device: {device}  params: {n_params:,}"
+        )
 
         trainer.train(
             max_steps=training["max_steps"],
             eval_interval=training["eval_interval"],
             log_interval=training.get("log_interval", 10),
             resume=training.get("resume", False),
-        )
-
-        best_val_loss = trainer.best_val_loss
-        logger.log_hparams(
-            flatten_config(config) | {"model.num_parameters": n_params},
-            {
-                "val_loss": best_val_loss,
-                "val_perplexity": math.exp(best_val_loss),
-            },
         )
 
 

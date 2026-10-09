@@ -1,12 +1,12 @@
 """Plot a run's training curves from its TensorBoard logs.
 
-Intended for documentation: reads a run directory (its ``tb/`` logs for the
+Intended for documentation: reads a run directory (its TensorBoard logs for the
 curves and ``latest.pt`` for metadata) and writes a PNG of the loss,
 perplexity and learning-rate curves.
 
 Usage:
-    uv run python scripts/plot_curves.py --run-dir artifacts/runs/lstm_baseline \
-        --out docs/baseline/lstm_baseline_curves.png
+    uv run python scripts/plot_curves.py --run-dir artifacts/runs/baseline/lstm \
+        --out docs/baseline/lstm_curves.png
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def main() -> None:
     run_dir: Path = args.run_dir
     out = args.out or (run_dir / "curves.png")
 
-    scalars = read_scalars(run_dir / "tb")
+    scalars = read_scalars(run_dir)
 
     def plot(tag: str, ax: plt.Axes, **kwargs: object) -> None:
         if tag in scalars:

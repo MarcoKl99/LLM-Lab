@@ -16,13 +16,13 @@ that share one training harness, across two corpora:
 
 | | Data | Model | Params | Val loss | Val ppl |
 |---|---|---|---|---|---|
-| [`lstm_baseline`](docs/shakespeare/lstm_baseline.md) | Tiny Shakespeare | LSTM | 1,577,984 | 3.255 | 25.92 |
-| [`gpt_baseline`](docs/shakespeare/gpt_baseline.md) | Tiny Shakespeare | GPT (decoder-only) | 932,608 | 3.209 | 24.76 |
+| [`lstm_baseline`](docs/shakespeare/lstm_baseline.md) | Tiny Shakespeare | LSTM | 1,577,984 | 3.233 | 25.36 |
+| [`gpt_baseline`](docs/shakespeare/gpt_baseline.md) | Tiny Shakespeare | GPT (decoder-only) | 932,608 | 3.216 | 24.93 |
 | [`lstm_tinystories`](docs/tinystories/lstm_tinystories.md) | TinyStories (~22M tokens) | LSTM | 2,169,856 | **2.466** | **11.78** |
 
 All runs were still improving when they stopped. Scaling the corpus from Tiny
 Shakespeare (~0.46M tokens) to TinyStories (~22M tokens) dropped the LSTM's
-validation perplexity from 25.9 to **11.8** and produced genuinely coherent
+validation perplexity from 25.4 to **11.8** and produced genuinely coherent
 stories. See [`docs/`](docs/) for full write-ups, samples and curves.
 
 > The param-matched LSTM-vs-transformer comparison on TinyStories is in progress
@@ -104,7 +104,8 @@ everything else stays the same.
 Each experiment is a single YAML file with four sections:
 
 ```yaml
-run_name: gpt_baseline
+experiment: baseline    # groups runs in TensorBoard, e.g. artifacts/runs/baseline
+run_name: gpt           # the model variant within the experiment
 seed: 0
 device: auto            # auto | cpu | cuda | mps
 

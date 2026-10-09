@@ -1,7 +1,7 @@
 # Baseline: GPT (Decoder-only Transformer)
 
-**Run name:** `gpt_baseline`
-**Date:** 2026-10-08
+**Run name:** `baseline/gpt`
+**Date:** 2026-10-09
 **Status:** complete (2000 / 2000 steps)
 
 ## Purpose
@@ -47,19 +47,19 @@ Notably, the GPT **outperforms the LSTM while being ~41% smaller** — see
 
 | Metric | Start | End (step 2000) |
 |---|---|---|
-| Train loss | 5.523 | 2.836 |
-| Val loss | 4.289 (step 200) | **3.209** |
-| Val perplexity | 72.9 | **24.76** |
+| Train loss | 5.515 | 2.858 |
+| Val loss | 4.256 (step 200) | **3.216** |
+| Val perplexity | 70.6 | **24.93** |
 
-Best validation loss: **3.2092** (perplexity **24.76**), reached at the final
+Best validation loss: **3.2160** (perplexity **24.93**), reached at the final
 evaluation — still improving, not plateaued.
 
 ### Validation loss over training
 
 | Step | 200 | 400 | 600 | 800 | 1000 | 1200 | 1400 | 1600 | 1800 | 2000 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Val loss | 4.289 | 3.940 | 3.650 | 3.449 | 3.392 | 3.309 | 3.297 | 3.245 | 3.215 | 3.209 |
-| Val ppl | 72.9 | 51.4 | 38.5 | 31.5 | 29.7 | 27.4 | 27.0 | 25.7 | 24.9 | 24.8 |
+| Val loss | 4.256 | 3.872 | 3.700 | 3.570 | 3.405 | 3.366 | 3.286 | 3.289 | 3.250 | 3.216 |
+| Val ppl | 70.6 | 48.0 | 40.4 | 35.5 | 30.1 | 29.0 | 26.7 | 26.8 | 25.8 | 24.9 |
 
 ### Training curves
 
@@ -74,27 +74,48 @@ Prompt: `ROMEO: `, `temperature = 0.8`, `top_k = 50`.
 **Step 200 (early):**
 
 ```
-ROMEO: anirce; for thou whilve a mack,
-Tilleeping to Londerst.
-...
-Trir the none:
-Oh, the earth, the natry, why, a cletenger:
+ROMEO: Thirt'd, in the faftal'd and
+And the darpuaileep
+And is no pruck to make, 't
+And fillow:
+That I have frace,
+We should
+As you, hef the vandsive in the came at the baticharges,
+And the little cletenion,
+Becasts, to me dratands with a groany to be dright.
+TINGS:
+
+Thy, what is fillly of accay,
+Eve him in the less as I have there.
+
+PE:
+Pald, as I have mious hearts's
+And,
+Ont, and to the world,
+The stlown of Bir,
+So banged, by the fully
 ```
 
 **Step 2000 (final):**
 
 ```
-ROMEO: Nreessibe;
-For thy depart with braining favour
-Strike fal with the ground of glory:
-This man hath, moving me in his hand,
-Bestride our i' the land, aside.
+ROMEO: He's, postey; and therefore, my lords;
+And, if you wish; if they be deed to wail
+Rememempt, yet he had made you,
+He soony to be a subjected,
+I could proceed in the king in this
+By my soul babies husbanding here.
 
-KING RICHARD III:
-I pray, be gone, so your graceful.
+First Murderer:
+Well, I have done to die: I'll go my cover,
+That wish'd the fire of my dinying days
+And free-growning to the wish bleedsom.
 
-BUCKINGHAM:
-Why, what art thou that'st not sole to wander?
+LADY  Lord:
+I am in my cousin Buckingham:
+Disgled you singerve your king
+Than that your father was attended,
+When you would have done the st
 ```
 
 By step 2000 the output shows grammatical phrases, consistent speaker labels,
@@ -105,8 +126,8 @@ same step.
 
 | Model | Params | Context | Val loss | Val perplexity |
 |---|---|---|---|---|
-| LSTM (`lstm_baseline`) | 1,577,984 | 64 | 3.255 | 25.92 |
-| **GPT** (`gpt_baseline`) | **932,608** | 64 | **3.209** | **24.76** |
+| LSTM (`baseline/lstm`) | 1,577,984 | 64 | 3.233 | 25.36 |
+| **GPT** (`baseline/gpt`) | **932,608** | 64 | **3.216** | **24.93** |
 
 - The GPT reaches **lower validation loss with ~41% fewer parameters**
   (932,608 vs. 1,577,984).
@@ -128,10 +149,10 @@ The decisive, param-matched comparison will be run on a larger corpus
 ## Artifacts
 
 ```
-artifacts/runs/gpt_baseline/
-├── best.pt      # best validation loss checkpoint
-├── latest.pt    # last checkpoint (step 2000)
-└── tb/          # TensorBoard logs (scalars, config, samples, hparams)
+artifacts/runs/baseline/gpt/
+├── best.pt                  # best validation loss checkpoint
+├── latest.pt                # last checkpoint (step 2000)
+└── events.out.tfevents.*    # TensorBoard logs (scalars, config, samples, hparams)
 ```
 
 ## Reproduction
