@@ -64,3 +64,13 @@ def test_training_is_deterministic() -> None:
     first = BPETokenizer.train([CORPUS], vocab_size=320)
     second = BPETokenizer.train([CORPUS], vocab_size=320)
     assert first.encode("hello world") == second.encode("hello world")
+
+
+def test_token_id_lookup(tokenizer: BPETokenizer) -> None:
+    assert tokenizer.token_id("<|endoftext|>") is not None
+    assert tokenizer.token_id("<not-a-real-token>") is None
+
+
+def test_encode_batch_matches_encode(tokenizer: BPETokenizer) -> None:
+    texts = ["hello world", "the quick brown fox"]
+    assert tokenizer.encode_batch(texts) == [tokenizer.encode(t) for t in texts]

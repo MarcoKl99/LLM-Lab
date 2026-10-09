@@ -32,6 +32,7 @@ def main() -> None:
         raw_dir=Path(data["raw_dir"]),
         processed_dir=Path(data["processed_dir"]),
         val_fraction=data["val_fraction"],
+        max_documents=data.get("max_documents"),
     )
 
     print(f"corpus:       {data['corpus']}")

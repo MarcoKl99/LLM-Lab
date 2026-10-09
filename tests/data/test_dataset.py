@@ -9,6 +9,7 @@ from llm_lab.data.dataset import (
     LMDataset,
     build_dataloader,
     encode_corpus,
+    encode_documents,
     split_train_val,
 )
 from llm_lab.data.tokenizer import BPETokenizer
@@ -75,6 +76,12 @@ def test_split_is_contiguous_tail() -> None:
     assert torch.equal(val, tokens[80:])
 
 
+def test_split_returns_independent_copies() -> None:
+    train, val = split_train_val(torch.arange(100), val_fraction=0.2)
+    assert train.untyped_storage().nbytes() == len(train) * train.element_size()
+    assert val.untyped_storage().nbytes() == len(val) * val.element_size()
+
+
 def test_rejects_bad_val_fraction() -> None:
     with pytest.raises(ValueError):
         split_train_val(torch.arange(100), val_fraction=0.0)
@@ -120,3 +127,24 @@ def test_encode_corpus_matches_tokenizer() -> None:
     encoded = encode_corpus(tokenizer, text)
     assert encoded.dtype == torch.long
     assert encoded.tolist() == tokenizer.encode(text)
+
+
+def test_encode_documents_without_eos_concatenates() -> None:
+    tokenizer = BPETokenizer.train(["hello world " * 20], vocab_size=300)
+    tokens = encode_documents(tokenizer, ["hello", "world"])
+    assert tokens.tolist() == tokenizer.encode("hello") + tokenizer.encode("world")
+
+
+def test_encode_documents_inserts_eos_between_documents() -> None:
+    tokenizer = BPETokenizer.train(["hello world " * 20], vocab_size=300)
+    eos_id = tokenizer.token_id("<|endoftext|>")
+    assert eos_id is not None
+
+    tokens = encode_documents(tokenizer, ["hello", "world"], eos_id=eos_id)
+    expected = (
+        tokenizer.encode("hello")
+        + [eos_id]
+        + tokenizer.encode("world")
+        + [eos_id]
+    )
+    assert tokens.tolist() == expected

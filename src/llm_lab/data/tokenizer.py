@@ -41,8 +41,15 @@ class BPETokenizer:
     def encode(self, text: str) -> list[int]:
         return self._tokenizer.encode(text).ids
 
+    def encode_batch(self, texts: list[str]) -> list[list[int]]:
+        return [encoding.ids for encoding in self._tokenizer.encode_batch(texts)]
+
     def decode(self, ids: list[int]) -> str:
         return self._tokenizer.decode(ids)
+
+    def token_id(self, token: str) -> int | None:
+        """Return the id of ``token`` (e.g. a special token), or ``None``."""
+        return self._tokenizer.token_to_id(token)
 
     @property
     def vocab_size(self) -> int:

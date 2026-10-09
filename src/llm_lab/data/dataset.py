@@ -7,6 +7,8 @@ This module produces those pairs from a 1D tensor of token ids.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
@@ -14,19 +16,58 @@ from torch.utils.data import DataLoader, Dataset
 from llm_lab.data.tokenizer import BPETokenizer
 
 
+def encode_documents(
+    tokenizer: BPETokenizer,
+    documents: Iterable[str],
+    eos_id: int | None = None,
+    batch_size: int = 1000,
+) -> Tensor:
+    """Encode documents into one 1D ``LongTensor``.
+
+    If ``eos_id`` is given, it is appended after every document so the model
+    learns document boundaries rather than predicting across unrelated texts.
+    """
+    pieces: list[Tensor] = []
+    batch: list[str] = []
+
+    def flush() -> None:
+        if not batch:
+            return
+        flat: list[int] = []
+        for ids in tokenizer.encode_batch(batch):
+            flat.extend(ids)
+            if eos_id is not None:
+                flat.append(eos_id)
+        pieces.append(torch.tensor(flat, dtype=torch.long))
+        batch.clear()
+
+    for text in documents:
+        batch.append(text)
+        if len(batch) == batch_size:
+            flush()
+    flush()
+
+    if not pieces:
+        return torch.empty(0, dtype=torch.long)
+    return torch.cat(pieces)
+
+
 def encode_corpus(tokenizer: BPETokenizer, text: str) -> Tensor:
-    """Encode ``text`` into a 1D ``LongTensor`` of token ids."""
-    return torch.tensor(tokenizer.encode(text), dtype=torch.long)
+    """Encode a single text into a 1D ``LongTensor`` of token ids."""
+    return encode_documents(tokenizer, [text])
 
 
 def split_train_val(
     tokens: Tensor, val_fraction: float = 0.1
 ) -> tuple[Tensor, Tensor]:
-    """Split a 1D token tensor into contiguous train/val parts (val is the tail)."""
+    """Split a 1D token tensor into contiguous train/val parts (val is the tail).
+
+    Returns independent copies so neither part keeps the full backing storage.
+    """
     if not 0.0 < val_fraction < 1.0:
         raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
     split = int(len(tokens) * (1.0 - val_fraction))
-    return tokens[:split], tokens[split:]
+    return tokens[:split].clone(), tokens[split:].clone()
 
 
 class LMDataset(Dataset[tuple[Tensor, Tensor]]):

@@ -11,26 +11,28 @@ experimental system** and understand every step along the way.
 
 ## Status 🚦
 
-The full pipeline is in place and validated end-to-end on Tiny Shakespeare with
-two architectures that share one training harness:
+The full pipeline is in place and validated end-to-end with two architectures
+that share one training harness, across two corpora:
 
 | | Data | Model | Params | Val loss | Val ppl |
 |---|---|---|---|---|---|
-| [`lstm_baseline`](docs/baseline/lstm_baseline.md) | Tiny Shakespeare | LSTM | 1,577,984 | 3.255 | 25.92 |
-| [`gpt_baseline`](docs/baseline/gpt_baseline.md) | Tiny Shakespeare | GPT (decoder-only) | 932,608 | **3.209** | **24.76** |
+| [`lstm_baseline`](docs/shakespeare/lstm_baseline.md) | Tiny Shakespeare | LSTM | 1,577,984 | 3.255 | 25.92 |
+| [`gpt_baseline`](docs/shakespeare/gpt_baseline.md) | Tiny Shakespeare | GPT (decoder-only) | 932,608 | 3.209 | 24.76 |
+| [`lstm_tinystories`](docs/tinystories/lstm_tinystories.md) | TinyStories (~22M tokens) | LSTM | 2,169,856 | **2.466** | **11.78** |
 
-Both runs completed 2000 steps and were still improving. The transformer reaches
-lower validation loss with ~41% fewer parameters. See
-[`docs/baseline/`](docs/baseline/) for full write-ups, samples and curves.
+All runs were still improving when they stopped. Scaling the corpus from Tiny
+Shakespeare (~0.46M tokens) to TinyStories (~22M tokens) dropped the LSTM's
+validation perplexity from 25.9 to **11.8** and produced genuinely coherent
+stories. See [`docs/`](docs/) for full write-ups, samples and curves.
 
-> Note: Tiny Shakespeare (~0.46M tokens) is far too small for a *controlled*
-> architecture comparison. A param-matched comparison on a larger corpus
-> (TinyStories) is the next milestone.
+> The param-matched LSTM-vs-transformer comparison on TinyStories is in progress
+> (the GPT run is pending).
 
 ## What's implemented ❓
 
-- **Data pipeline** — corpus download/cache, byte-level BPE tokenizer,
-  next-token windowing, batching.
+- **Data pipeline** — corpus download/cache and streamed HuggingFace documents,
+  byte-level BPE tokenizer, `<|endoftext|>` document boundaries, next-token
+  windowing, batching.
 - **Models** — a stateless **LSTM** baseline and a **GPT** decoder-only
   transformer (pre-LN, learned positions, GELU, tied embeddings), both behind a
   single `forward(input_ids) -> logits` contract.
@@ -56,9 +58,12 @@ LLM-Lab/
 ├── scripts/                 # thin entrypoints
 │   ├── prepare_data.py
 │   ├── train.py
-│   └── plot_curves.py
+│   ├── plot_curves.py
+│   └── inspect_tokens.py
 ├── tests/                   # mirrors src/llm_lab
-├── docs/baseline/           # experiment write-ups + curve figures
+├── docs/                    # experiment write-ups + curve figures
+│   ├── shakespeare/
+│   └── tinystories/
 ├── data/                    # raw + processed data         (gitignored)
 └── artifacts/               # tokenizers, checkpoints, logs (gitignored)
 ```
@@ -91,6 +96,7 @@ everything else stays the same.
 | `scripts/prepare_data.py --config <yaml>` | Train tokenizer + write `data/processed/**/{train,val}.pt` |
 | `scripts/train.py --config <yaml>` | Train a model; checkpoint, resume, log to TensorBoard |
 | `scripts/plot_curves.py --run-dir <dir> --out <png>` | Plot loss / perplexity / LR curves for documentation |
+| `scripts/inspect_tokens.py --processed-dir <dir>` | Show how a processed token stream is laid out (documents + EOS) |
 
 ## Configuration ⚙️
 
@@ -159,8 +165,8 @@ optimizer/schedule, trainer (including resume), generation, and both models
 - [x] Config-driven, reproducible experiment setup
 - [x] LSTM baseline + GPT transformer, shared harness
 - [x] Checkpoint/resume, TensorBoard logging, sample generation
-- [ ] **Scale to a larger corpus (TinyStories)** with a larger-vocab tokenizer
-- [ ] Param-matched LSTM vs. transformer comparison
+- [x] Scale to a larger corpus (TinyStories) with a larger-vocab tokenizer
+- [ ] Param-matched LSTM vs. transformer comparison (LSTM done, GPT pending)
 - [ ] Scaling experiments (data / model / compute)
 - [ ] Instruction-tuning / fine-tuning toward a useful assistant
 
