@@ -18,15 +18,15 @@ that share one training harness, across two corpora:
 |---|---|---|---|---|---|
 | [`lstm_baseline`](docs/shakespeare/lstm_baseline.md) | Tiny Shakespeare | LSTM | 1,577,984 | 3.233 | 25.36 |
 | [`gpt_baseline`](docs/shakespeare/gpt_baseline.md) | Tiny Shakespeare | GPT (decoder-only) | 932,608 | 3.216 | 24.93 |
-| [`lstm_tinystories`](docs/tinystories/lstm_tinystories.md) | TinyStories (~22M tokens) | LSTM | 2,169,856 | **2.466** | **11.78** |
+| [`lstm_tinystories`](docs/tinystories/lstm_tinystories.md) | TinyStories (~22M tokens) | LSTM | 2,169,856 | 2.324 | 10.21 |
+| [`gpt_tinystories`](docs/tinystories/gpt_tinystories.md) | TinyStories (~22M tokens) | GPT (decoder-only) | 2,145,984 | **1.694** | **5.44** |
 
 All runs were still improving when they stopped. Scaling the corpus from Tiny
 Shakespeare (~0.46M tokens) to TinyStories (~22M tokens) dropped the LSTM's
-validation perplexity from 25.4 to **11.8** and produced genuinely coherent
-stories. See [`docs/`](docs/) for full write-ups, samples and curves.
-
-> The param-matched LSTM-vs-transformer comparison on TinyStories is in progress
-> (the GPT run is pending).
+validation perplexity from 25.4 to **10.2** and produced genuinely coherent
+stories. In the **param-matched** TinyStories comparison (~2.15M params each),
+the transformer reaches **5.44** perplexity versus the LSTM's **10.2**. See
+[`docs/`](docs/) for full write-ups, samples and curves.
 
 ## What's implemented ❓
 
@@ -40,7 +40,8 @@ stories. See [`docs/`](docs/) for full write-ups, samples and curves.
   schedule, gradient clipping, validation, checkpointing + **resume**,
   optional early stopping, TensorBoard logging, and sample-text generation
   during training.
-- **Generation** — temperature / top-k / greedy sampling, shared by both models.
+- **Generation** — temperature / top-k / greedy sampling with early stopping at
+  `<|endoftext|>`, shared by both models.
 - **Reproducibility** — everything driven by YAML configs; a thin `scripts/`
   layer over a testable `src/llm_lab` library.
 
@@ -140,6 +141,8 @@ sampling:
   max_new_tokens: 200
   temperature: 0.8
   top_k: 50
+  # optional; stop early at this token, or null to disable early stopping
+  # eos_token: "<|endoftext|>"
 ```
 
 Available configs: [`configs/experiments/`](configs/experiments/).
@@ -172,7 +175,8 @@ optimizer/schedule, trainer (including resume), generation, and both models
 - [x] LSTM baseline + GPT transformer, shared harness
 - [x] Checkpoint/resume, TensorBoard logging, sample generation
 - [x] Scale to a larger corpus (TinyStories) with a larger-vocab tokenizer
-- [ ] Param-matched LSTM vs. transformer comparison (LSTM done, GPT pending)
+- [x] Param-matched LSTM vs. transformer comparison on TinyStories (transformer
+      wins: 5.44 vs. 10.2 val perplexity)
 - [ ] Scaling experiments (data / model / compute)
 - [ ] Instruction-tuning / fine-tuning toward a useful assistant
 

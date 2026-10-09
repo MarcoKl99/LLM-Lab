@@ -18,7 +18,7 @@ compared against a real number.
 
 | | |
 |---|---|
-| Python | 3.13.7 |
+| Python | 3.12.7 |
 | PyTorch | 2.14.1 |
 | Device | Apple MPS (macOS arm64) |
 | Corpus | Tiny Shakespeare (1,115,394 chars) |
@@ -123,6 +123,14 @@ Speak, messenger
 By step 2000 the model has learned blank-verse line structure,
 character-name formatting, and a real vocabulary (`devil`, `mercy`,
 `sleep`, `messenger`).
+
+> **Note — early stopping at `<|endoftext|>` was missing.** This run predates the
+> `generate` fix that stops decoding at the document boundary. Tiny Shakespeare is
+> effectively a single document, so the boundary token is rarely emitted and the
+> samples here are largely unaffected — but generation did not honor
+> `<|endoftext|>` when it did appear. Loss/perplexity are unaffected (they are
+> computed on the token stream, not on generation). Runs after the fix stop
+> cleanly at the boundary.
 
 ## Observations
 

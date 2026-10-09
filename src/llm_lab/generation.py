@@ -23,11 +23,14 @@ def generate(
     temperature: float = 1.0,
     top_k: int | None = None,
     device: torch.device | None = None,
+    eos_token: str | None = "<|endoftext|>",
 ) -> str:
-    """Sample ``max_new_tokens`` continuations of ``prompt`` and return the text.
+    """Sample up to ``max_new_tokens`` continuations of ``prompt`` and return the text.
 
     The models are stateless, so each step re-runs ``forward`` over the last
     ``context_window`` tokens. ``temperature <= 0`` selects greedy decoding.
+    Generation stops early once the model predicts ``eos_token`` (the document
+    boundary it was trained on); pass ``eos_token=None`` to disable this.
     """
     was_training = model.training
     model.eval()
@@ -38,6 +41,8 @@ def generate(
     ids = tokenizer.encode(prompt)
     if not ids:
         raise ValueError("prompt must tokenize to at least one token")
+
+    eos_id = tokenizer.token_id(eos_token) if eos_token is not None else None
 
     for _ in range(max_new_tokens):
         window = ids[-context_window:]
@@ -56,6 +61,8 @@ def generate(
             next_id = int(torch.multinomial(probs, num_samples=1))
 
         ids.append(next_id)
+        if eos_id is not None and next_id == eos_id:
+            break
 
     if was_training:
         model.train()

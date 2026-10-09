@@ -18,7 +18,7 @@ Notably, the GPT **outperforms the LSTM while being ~41% smaller** — see
 
 | | |
 |---|---|
-| Python | 3.13.7 |
+| Python | 3.12.7 |
 | PyTorch | 2.14.1 |
 | Device | Apple MPS (macOS arm64) |
 | Corpus | Tiny Shakespeare (1,115,394 chars) |
@@ -121,6 +121,14 @@ When you would have done the st
 By step 2000 the output shows grammatical phrases, consistent speaker labels,
 and blank-verse structure — qualitatively more coherent than the LSTM at the
 same step.
+
+> **Note — early stopping at `<|endoftext|>` was missing.** This run predates the
+> `generate` fix that stops decoding at the document boundary. Tiny Shakespeare is
+> effectively a single document, so the boundary token is rarely emitted and the
+> samples here are largely unaffected — but generation did not honor
+> `<|endoftext|>` when it did appear. Loss/perplexity are unaffected (they are
+> computed on the token stream, not on generation). Runs after the fix stop
+> cleanly at the boundary.
 
 ## Comparison with the LSTM baseline
 

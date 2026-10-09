@@ -7,6 +7,7 @@ import torch
 
 from llm_lab.data.tokenizer import BPETokenizer
 from llm_lab.generation import generate
+from llm_lab.model.base import LanguageModel
 from llm_lab.model.lstm import LSTMLanguageModel
 
 
@@ -18,6 +19,22 @@ def _setup() -> tuple[LSTMLanguageModel, BPETokenizer]:
     return model, tokenizer
 
 
+class _AlwaysEos(LanguageModel):
+    """Dummy model that makes ``eos_id`` the argmax and counts ``forward`` calls."""
+
+    def __init__(self, vocab_size: int, eos_id: int) -> None:
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.eos_id = eos_id
+        self.calls = 0
+
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        self.calls += 1
+        logits = torch.full((*input_ids.shape, self.vocab_size), -1e9)
+        logits[..., self.eos_id] = 0.0
+        return logits
+
+
 def test_generate_extends_prompt() -> None:
     model, tokenizer = _setup()
     text = generate(
@@ -27,6 +44,7 @@ def test_generate_extends_prompt() -> None:
         max_new_tokens=5,
         context_window=8,
         device=torch.device("cpu"),
+        eos_token=None,
     )
     assert text.startswith("hello")
     assert len(tokenizer.encode(text)) >= len(tokenizer.encode("hello")) + 1
@@ -51,3 +69,44 @@ def test_generate_rejects_empty_prompt() -> None:
     model, tokenizer = _setup()
     with pytest.raises(ValueError):
         generate(model, tokenizer, "", max_new_tokens=2, context_window=8)
+
+
+def test_generate_stops_at_eos_token() -> None:
+    tokenizer = BPETokenizer.train(["hello world " * 50], vocab_size=300)
+    eos_id = tokenizer.token_id("<|endoftext|>")
+    assert eos_id is not None
+    model = _AlwaysEos(tokenizer.vocab_size, eos_id)
+
+    generate(
+        model,
+        tokenizer,
+        "hello",
+        max_new_tokens=10,
+        context_window=8,
+        temperature=0.0,
+        device=torch.device("cpu"),
+    )
+
+    # EOS is predicted immediately, so generation stops after one step.
+    assert model.calls == 1
+
+
+def test_generate_eos_stop_can_be_disabled() -> None:
+    tokenizer = BPETokenizer.train(["hello world " * 50], vocab_size=300)
+    eos_id = tokenizer.token_id("<|endoftext|>")
+    assert eos_id is not None
+    model = _AlwaysEos(tokenizer.vocab_size, eos_id)
+
+    generate(
+        model,
+        tokenizer,
+        "hello",
+        max_new_tokens=10,
+        context_window=8,
+        temperature=0.0,
+        device=torch.device("cpu"),
+        eos_token=None,
+    )
+
+    # With stopping disabled, the full budget is used despite predicting EOS.
+    assert model.calls == 10

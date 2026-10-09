@@ -59,6 +59,7 @@ def build_sample_fn(
             temperature=sampling.get("temperature", 1.0),
             top_k=sampling.get("top_k"),
             device=device,
+            eos_token=sampling.get("eos_token", "<|endoftext|>"),
         )
         logger.log_text("samples", f"step {step}\n\n{text}", step)
 
