@@ -38,7 +38,8 @@ stories. See [`docs/`](docs/) for full write-ups, samples and curves.
   single `forward(input_ids) -> logits` contract.
 - **Training harness** (architecture-agnostic) — AdamW, warmup + cosine LR
   schedule, gradient clipping, validation, checkpointing + **resume**,
-  TensorBoard logging, and sample-text generation during training.
+  optional early stopping, TensorBoard logging, and sample-text generation
+  during training.
 - **Generation** — temperature / top-k / greedy sampling, shared by both models.
 - **Reproducibility** — everything driven by YAML configs; a thin `scripts/`
   layer over a testable `src/llm_lab` library.
@@ -128,6 +129,10 @@ training:
   max_steps: 2000
   eval_interval: 200
   resume: true
+  # optional; max_steps still defines the LR-schedule horizon
+  # early_stopping:
+  #   patience: 5
+  #   min_delta: 0.0
 
 sampling:
   prompt: "ROMEO: "

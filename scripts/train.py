@@ -122,6 +122,7 @@ def main() -> None:
             if "sampling" in config
             else None
         )
+        early_stopping = training.get("early_stopping") or {}
 
         trainer = Trainer(
             model,
@@ -135,6 +136,8 @@ def main() -> None:
             grad_clip=training.get("grad_clip"),
             eval_batches=training.get("eval_batches"),
             sample_fn=sample_fn,
+            early_stop_patience=early_stopping.get("patience"),
+            early_stop_min_delta=early_stopping.get("min_delta", 0.0),
         )
 
         print(f"run: {config['run_name']}  device: {device}  params: {n_params:,}")

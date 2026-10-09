@@ -24,6 +24,8 @@ def _build_trainer(
     tmp_path: Path,
     model: LSTMLanguageModel | None = None,
     sample_fn: Callable[[int], None] | None = None,
+    early_stop_patience: int | None = None,
+    early_stop_min_delta: float = 0.0,
 ) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
     model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
@@ -45,6 +47,8 @@ def _build_trainer(
         grad_clip=1.0,
         eval_batches=2,
         sample_fn=sample_fn,
+        early_stop_patience=early_stop_patience,
+        early_stop_min_delta=early_stop_min_delta,
     )
     return trainer, run_dir
 
@@ -88,6 +92,27 @@ def test_load_checkpoint_restores_model_state(tmp_path: Path) -> None:
     assert step == 5
     for name, tensor in other.model.state_dict().items():
         assert torch.equal(tensor, saved["model"][name])
+
+
+def test_early_stopping_triggers_after_patience(tmp_path: Path) -> None:
+    trainer, _ = _build_trainer(
+        tmp_path, early_stop_patience=2, early_stop_min_delta=1e9
+    )
+    history = trainer.train(max_steps=30, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    # first eval sets the baseline, then two non-improving evals stop it at step 15
+    assert len(history["val_loss"]) == 3
+    assert len(history["train_loss"]) == 15
+
+
+def test_no_early_stopping_when_patience_is_none(tmp_path: Path) -> None:
+    trainer, _ = _build_trainer(tmp_path, early_stop_min_delta=1e9)
+    history = trainer.train(max_steps=15, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    assert len(history["train_loss"]) == 15
+    assert len(history["val_loss"]) == 3
 
 
 def test_trainer_invokes_sample_fn_at_evals(tmp_path: Path) -> None:

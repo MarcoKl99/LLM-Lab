@@ -47,6 +47,8 @@ class Trainer:
         grad_clip: float | None = None,
         eval_batches: int | None = None,
         sample_fn: Callable[[int], None] | None = None,
+        early_stop_patience: int | None = None,
+        early_stop_min_delta: float = 0.0,
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
@@ -59,6 +61,8 @@ class Trainer:
         self.grad_clip = grad_clip
         self.eval_batches = eval_batches
         self.sample_fn = sample_fn
+        self.early_stop_patience = early_stop_patience
+        self.early_stop_min_delta = early_stop_min_delta
         self.vocab_size = model.vocab_size
         self.best_val_loss = float("inf")
 
@@ -111,6 +115,7 @@ class Trainer:
 
         self.model.train()
         batches = _infinite_batches(self.train_loader)
+        evals_without_improvement = 0
         bar = tqdm(
             range(start_step, max_steps + 1),
             initial=start_step - 1,
@@ -149,12 +154,27 @@ class Trainer:
                     f"step {step:>6} | val loss {val_loss:.4f} | ppl {val_perplexity:.2f}"
                 )
 
-                is_best = val_loss < self.best_val_loss
-                self.best_val_loss = min(self.best_val_loss, val_loss)
-                self._save_checkpoint(step, is_best=is_best)
+                improved = val_loss < self.best_val_loss - self.early_stop_min_delta
+                if improved:
+                    self.best_val_loss = val_loss
+                self._save_checkpoint(step, is_best=improved)
 
                 if self.sample_fn is not None:
                     self.sample_fn(step)
+
+                if improved:
+                    evals_without_improvement = 0
+                else:
+                    evals_without_improvement += 1
+                    if (
+                        self.early_stop_patience is not None
+                        and evals_without_improvement >= self.early_stop_patience
+                    ):
+                        tqdm.write(
+                            f"early stopping at step {step} "
+                            f"(no improvement for {evals_without_improvement} evals)"
+                        )
+                        break
 
         return history
 
