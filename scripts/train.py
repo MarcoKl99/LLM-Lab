@@ -17,7 +17,7 @@ import torch
 import yaml
 
 from llm_lab.config import flatten_config, load_config
-from llm_lab.data.dataset import build_dataloader
+from llm_lab.data.dataset import build_dataloader, limit_tokens
 from llm_lab.data.tokenizer import BPETokenizer
 from llm_lab.generation import generate
 from llm_lab.model.base import LanguageModel
@@ -76,7 +76,9 @@ def main() -> None:
     data = config["data"]
     tokenizer = BPETokenizer.load(data["tokenizer"]["output"])
     processed_dir = Path(data["processed_dir"])
-    train_tokens = torch.load(processed_dir / "train.pt")
+    train_tokens = limit_tokens(
+        torch.load(processed_dir / "train.pt"), data.get("max_train_tokens")
+    )
     val_tokens = torch.load(processed_dir / "val.pt")
 
     training = config["training"]

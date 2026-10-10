@@ -57,6 +57,20 @@ def encode_corpus(tokenizer: BPETokenizer, text: str) -> Tensor:
     return encode_documents(tokenizer, [text])
 
 
+def limit_tokens(tokens: Tensor, max_tokens: int | None) -> Tensor:
+    """Return the first ``max_tokens`` of ``tokens`` (or all of them if ``None``).
+
+    Used to vary the training-data budget while keeping the tokenizer and the
+    train/val split fixed: every run then sees a nested prefix of the same
+    stream.
+    """
+    if max_tokens is None:
+        return tokens
+    if max_tokens < 1:
+        raise ValueError(f"max_tokens must be >= 1, got {max_tokens}")
+    return tokens[:max_tokens]
+
+
 def split_train_val(
     tokens: Tensor, val_fraction: float = 0.1
 ) -> tuple[Tensor, Tensor]:

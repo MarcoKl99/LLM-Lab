@@ -10,6 +10,7 @@ from llm_lab.data.dataset import (
     build_dataloader,
     encode_corpus,
     encode_documents,
+    limit_tokens,
     split_train_val,
 )
 from llm_lab.data.tokenizer import BPETokenizer
@@ -85,6 +86,21 @@ def test_split_returns_independent_copies() -> None:
 def test_rejects_bad_val_fraction() -> None:
     with pytest.raises(ValueError):
         split_train_val(torch.arange(100), val_fraction=0.0)
+
+
+def test_limit_tokens_truncates_to_prefix() -> None:
+    tokens = torch.arange(100)
+    assert torch.equal(limit_tokens(tokens, 30), tokens[:30])
+
+
+def test_limit_tokens_none_returns_all() -> None:
+    tokens = torch.arange(100)
+    assert torch.equal(limit_tokens(tokens, None), tokens)
+
+
+def test_limit_tokens_rejects_non_positive() -> None:
+    with pytest.raises(ValueError):
+        limit_tokens(torch.arange(10), 0)
 
 
 def test_iteration_yields_every_window_once() -> None:

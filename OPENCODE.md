@@ -2,11 +2,43 @@
 
 ## Project
 
-This is a research and learning project to build a modern decoder-only language model from scratch, starting from random initialization and eventually reaching a useful completion/instruction model.
+This is a serious, long-horizon research and learning project to build a modern
+decoder-only language model from scratch — starting from random initialization
+and working all the way to a genuinely useful, instruction-following model.
 
-The primary goal is **understanding the process**.
+The primary goal is **understanding the process**, but the destination is
+ambitious: a **Medium Language Model (MLM)** — a real, working model, not a toy.
+This is meant to become a portfolio-grade **showcase** of the entire modern
+pipeline (data → pre-training → instruction tuning → alignment → evaluation →
+deployment), not a small hobby to be dropped after a week.
+
+## Ambition and scope
+
+We are aiming high, and we want to go **deep** into every stage of the modern
+pipeline rather than stop at a small proof of concept:
+
+1. **Data** — acquisition, curation, deduplication, tokenizer design, scaling.
+2. **Pre-training** — architecture, optimization, scaling laws, compute budgets.
+3. **Supervised / instruction fine-tuning** — turning a base model into an
+   assistant that follows instructions.
+4. **Alignment** — preference data, reward modeling, RLHF / DPO-style methods,
+   and the associated safety considerations.
+5. **Evaluation** — loss/perplexity, task benchmarks, and qualitative review.
+6. **Inference & deployment** — sampling, efficiency, and a demo someone can
+   actually use.
+
+Treat this as a portfolio-grade body of work: clean, documented, reproducible,
+and explainable to a technical audience. We want to be able to justify every
+decision and demonstrate the result.
 
 ## Principles
+
+### Aim high, build incrementally
+
+The destination is ambitious — a useful Medium Language Model and a full-pipeline
+showcase — but the path is incremental. Validate each mechanism at small scale
+before spending real compute on the next step. Ambition sets the direction;
+discipline sets the pace. Do not confuse "start small" with "stay small".
 
 ### Modular and iterative
 
@@ -72,11 +104,28 @@ The goal is not simply:
 
 > "Train a language model."
 
-The goal is:
+Nor is it only to understand each mechanism in isolation. The goal is:
 
-> **Build a clean, reproducible experimental system and understand how data, architecture, optimization and compute transform random parameters into a useful language model.**
+> **Build a clean, reproducible, end-to-end experimental system; use it to
+> understand, from scratch, how data, architecture, optimization and compute turn
+> random parameters into a useful language model; and push that system as far as
+> our compute allows — toward a genuine Medium Language Model and a showcase of
+> the entire modern training pipeline (pre-training, instruction tuning,
+> alignment, evaluation).**
+
+Small steps are the method; a real, useful model is the destination. We want to
+be able to explain and demonstrate every stage: why a choice was made, what it
+changed, and what the numbers say.
 
 Do not rush, but give me time to ask questions about the codebase in between.
+
+## Compute
+
+Development and most experiments run on an Apple M4 Pro (24 GB) — enough to
+build, validate and iterate on the full pipeline and on small/medium models.
+Scaling runs can use rented or free cloud GPUs (e.g. Google Colab). Keep the code
+portable across devices (CPU / MPS / CUDA), treat local hardware as the place to
+*understand*, and use cloud compute to *scale* when it matters.
 
 ## Tech-Stack
 

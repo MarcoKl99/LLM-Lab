@@ -1,0 +1,18 @@
+# Data-prep config for the data-scaling experiment.
+#
+# Used only by scripts/prepare_data.py. It streams a large, fixed TinyStories
+# pool, trains ONE tokenizer on it, and writes the full train/val tensors. The
+# data-scaling training configs reuse this processed_dir + tokenizer and vary
+# `data.max_train_tokens` (a prefix of the same train stream), so the tokenizer
+# and validation set stay fixed while only the data budget changes.
+
+data:
+  corpus: tinystories
+  raw_dir: data/raw
+  processed_dir: data/processed/tinystories_pool
+  val_fraction: 0.01
+  context_window: 128
+  max_documents: 800000
+  tokenizer:
+    vocab_size: 4096
+    output: artifacts/tokenizer/tinystories_pool_bpe.json
