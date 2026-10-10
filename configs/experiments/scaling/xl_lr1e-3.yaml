@@ -1,0 +1,38 @@
+experiment: scaling
+run_name: xl_lr1e-3
+seed: 0
+device: auto
+
+data:
+  corpus: tinystories
+  raw_dir: data/raw
+  processed_dir: data/processed/tinystories
+  val_fraction: 0.01
+  context_window: 128
+  max_documents: 100000
+  tokenizer:
+    vocab_size: 4096
+    output: artifacts/tokenizer/tinystories_bpe.json
+
+model:
+  type: gpt
+  n_layer: 8
+  n_head: 8
+  n_embd: 512
+  dropout: 0.0
+  tie_weights: true
+
+training:
+  batch_size: 64
+  # reduced from 3e-3: the XL run destabilised at the original peak LR
+  learning_rate: 1.0e-3
+  weight_decay: 0.0
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  max_steps: 20000
+  eval_interval: 500
+  eval_batches: 20
+  log_interval: 50
+  grad_clip: 1.0
+  checkpoint_dir: artifacts/runs
+  resume: true

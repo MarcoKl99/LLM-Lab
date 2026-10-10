@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from llm_lab.model.lstm import LSTMLanguageModel
-from llm_lab.training.optimizer import build_optimizer, build_scheduler
+from llm_lab.training.optimizer import build_optimizer, build_scheduler, lr_factor
 from llm_lab.training.trainer import Trainer
 from llm_lab.utils.logging import Logger
 from llm_lab.utils.tensorboard import read_scalars
@@ -30,10 +30,11 @@ def _build_trainer(
     early_stop_min_delta: float = 0.0,
     tokens_per_step: int | None = None,
     unique_train_tokens: int | None = None,
+    learning_rate: float = 1e-2,
 ) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
     model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
-    optimizer = build_optimizer(model, learning_rate=1e-2)
+    optimizer = build_optimizer(model, learning_rate=learning_rate)
     scheduler = build_scheduler(
         optimizer, warmup_steps=2, max_steps=10, min_lr_ratio=0.1
     )
@@ -98,6 +99,29 @@ def test_load_checkpoint_restores_model_state(tmp_path: Path) -> None:
     assert step == 5
     for name, tensor in other.model.state_dict().items():
         assert torch.equal(tensor, saved["model"][name])
+
+
+def test_resume_picks_up_scheduler_learning_rate(tmp_path: Path) -> None:
+    # Run the schedule to step 5 (base LR 1e-2, warmup 2, cosine over 10 steps).
+    trainer, run_dir = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, log_interval=5, progress=False)
+    trainer.logger.close()
+
+    # Resume with a *different* config LR: the checkpoint's scheduler state wins.
+    resumed, _ = _build_trainer(tmp_path, learning_rate=1e-3)
+    resumed.load_checkpoint(run_dir / "latest.pt")
+    resumed.logger.close()
+
+    assert resumed.scheduler.base_lrs == [1e-2]
+    assert resumed.optimizer.param_groups[0]["lr"] == pytest.approx(
+        1e-2 * lr_factor(5, warmup_steps=2, max_steps=10, min_lr_ratio=0.1)
+    )
+
+    # The next step continues the checkpointed schedule, not a fresh warmup.
+    resumed.scheduler.step()
+    assert resumed.scheduler.get_last_lr()[0] == pytest.approx(
+        1e-2 * lr_factor(6, warmup_steps=2, max_steps=10, min_lr_ratio=0.1)
+    )
 
 
 def test_early_stopping_triggers_after_patience(tmp_path: Path) -> None:
