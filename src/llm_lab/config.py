@@ -27,3 +27,12 @@ def flatten_config(
         else:
             flat[name] = value
     return flat
+
+
+def run_dir_for(config: Mapping[str, Any]) -> Path:
+    """Return the run directory: ``checkpoint_dir / experiment / run_name``."""
+    return (
+        Path(config["training"]["checkpoint_dir"])
+        / config["experiment"]
+        / config["run_name"]
+    )

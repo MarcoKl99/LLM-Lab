@@ -97,6 +97,7 @@ everything else stays the same.
 |---|---|
 | `scripts/prepare_data.py --config <yaml>` | Train tokenizer + write `data/processed/**/{train,val}.pt` |
 | `scripts/train.py --config <yaml>` | Train a model; checkpoint, resume, log to TensorBoard |
+| `scripts/generate.py --config <yaml> [--prompt <text> \| --interactive]` | Prompt a trained checkpoint (defaults to `best.pt`) and print the completion |
 | `scripts/plot_curves.py --run-dir <dir> --out <png>` | Plot loss / perplexity / LR curves for documentation |
 | `scripts/inspect_tokens.py --processed-dir <dir>` | Show how a processed token stream is laid out (documents + EOS) |
 

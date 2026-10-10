@@ -16,7 +16,7 @@ from typing import Any
 import torch
 import yaml
 
-from llm_lab.config import flatten_config, load_config
+from llm_lab.config import flatten_config, load_config, run_dir_for
 from llm_lab.data.dataset import build_dataloader, limit_tokens
 from llm_lab.data.tokenizer import BPETokenizer
 from llm_lab.generation import generate
@@ -113,9 +113,7 @@ def main() -> None:
         min_lr_ratio=training["min_lr_ratio"],
     )
 
-    run_dir = (
-        Path(training["checkpoint_dir"]) / config["experiment"] / config["run_name"]
-    )
+    run_dir = run_dir_for(config)
     n_params = sum(p.numel() for p in model.parameters())
     tokens_per_step = training["batch_size"] * data["context_window"]
     unique_train_tokens = len(train_tokens)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from llm_lab.config import flatten_config, load_config
+from llm_lab.config import flatten_config, load_config, run_dir_for
 
 
 def test_load_config_reads_yaml(tmp_path: Path) -> None:
@@ -18,3 +18,13 @@ def test_flatten_config_uses_dotted_keys() -> None:
     config = {"a": 1, "b": {"c": 2, "d": {"e": "three"}}}
 
     assert flatten_config(config) == {"a": 1, "b.c": 2, "b.d.e": "three"}
+
+
+def test_run_dir_for_joins_checkpoint_dir_experiment_and_run_name() -> None:
+    config = {
+        "experiment": "baseline",
+        "run_name": "lstm",
+        "training": {"checkpoint_dir": "artifacts/runs"},
+    }
+
+    assert run_dir_for(config) == Path("artifacts/runs/baseline/lstm")
