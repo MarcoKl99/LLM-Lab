@@ -1,8 +1,8 @@
 # Scaling: GPT Model-Size Sweep
 
-**Experiment:** `scaling` (runs `scaling/{s,m,l,xl}`)
+**Experiment:** `scaling` (runs `scaling/{s,m,l,xl,xl_lr1e-3}`)
 **Date:** 2026-10-10
-**Status:** complete (4 × 20,000 steps)
+**Status:** complete (5 × 20,000 steps)
 
 ## Purpose
 
@@ -29,14 +29,19 @@ also served as the testbed for the new throughput / compute accounting.
 | `l` | 6 | 8 | 384 | 12,269,568 |
 | `xl` | 8 | 8 | 512 | 27,382,784 |
 
+The `xl` run **diverged** at `lr = 3e-3` (see below), so a follow-up run
+`xl_lr1e-3` repeated the exact same XL configuration with **only the learning
+rate lowered to `1e-3`**.
+
 ## Results (step 20,000)
 
-| Run | Params | Val loss | Val ppl | Best val loss | Train loss |
-|---|---|---|---|---|---|
-| `s` | 2.15M | 1.712 | 5.54 | 1.699 | 1.845 |
-| `m` | 4.24M | 1.570 | 4.80 | 1.570 | 1.731 |
-| `l` | 12.27M | 1.547 | 4.70 | 1.547 | 1.627 |
-| `xl` | 27.38M | 2.962 | 19.34 | 2.742 (@ step 500) | 3.171 |
+| Run | Params | LR | Val loss | Val ppl | Best val loss | Train loss |
+|---|---|---|---|---|---|---|
+| `s` | 2.15M | 3e-3 | 1.712 | 5.54 | 1.699 | 1.845 |
+| `m` | 4.24M | 3e-3 | 1.570 | 4.80 | 1.570 | 1.731 |
+| `l` | 12.27M | 3e-3 | 1.547 | 4.70 | 1.547 | 1.627 |
+| `xl` | 27.38M | 3e-3 | 2.962 | 19.34 | 2.742 (@ step 500) | 3.171 |
+| `xl_lr1e-3` | 27.38M | **1e-3** | 1.553 | 4.72 | **1.478** (@ step 14000) | 1.269 |
 
 ### Validation loss over training
 
@@ -46,6 +51,7 @@ also served as the testbed for the new throughput / compute accounting.
 | `m` | 2.595 | 2.071 | 1.864 | 1.800 | 1.735 | 1.706 | 1.621 | 1.588 | 1.570 |
 | `l` | 2.554 | 2.032 | 1.832 | 1.712 | 1.666 | 1.610 | 1.560 | 1.559 | 1.547 |
 | `xl` | 2.742 | 3.548 | 3.692 | 3.512 | 3.394 | 3.338 | 3.181 | 2.997 | 2.962 |
+| `xl_lr1e-3` | 2.489 | 1.927 | 1.745 | 1.645 | 1.558 | 1.523 | 1.478 | 1.590 | 1.553 |
 
 ### Training curves
 
@@ -64,44 +70,56 @@ schedule (right). Generated with [`scripts/plot_curves.py`](../../scripts/plot_c
 
 ![l training curves](l_curves.png)
 
-**`xl` — 27.38M params** (note the divergence around steps 500–2000)
+**`xl` — 27.38M params, `lr = 3e-3`** (note the divergence around steps 500–2000)
 
 ![xl training curves](xl_curves.png)
 
+**`xl_lr1e-3` — 27.38M params, `lr = 1e-3`** (same model, lower LR — stable)
+
+![xl_lr1e-3 training curves](xl_lr1e-3_curves.png)
+
 ## Observations
 
-- **`s → m → l` improves monotonically** with size (val loss 1.712 → 1.570 →
-  1.547), as expected. The gains shrink fast (0.142 then 0.023 nats), a sign the
-  runs are becoming **data-limited**: every size sees the same ~22M unique tokens
-  (~7.4 epochs).
-- **`xl` diverges.** It starts *best* of all (val 2.742 at step 500), then blows
-  up between steps 500–2000 (train 2.97 → 3.86, val 2.74 → 3.76) and only slowly
-  recovers as the LR decays — ending at val 2.962, worse than every smaller
-  model. Weights stay finite (no NaNs, max |w| ≈ 6.6), so this is a **training
-  instability, not a capacity limit**.
-- The blow-up coincides with the LR reaching its peak (warmup ends at step 200),
-  so the most likely cause is that **`lr = 3e-3` is too high for the 27M model**;
-  the smaller models tolerate it fine.
+- **Validation loss improves monotonically with size** once the LR is sensible:
+  best val loss 1.699 (`s`) → 1.570 (`m`) → 1.547 (`l`) → **1.478** (`xl_lr1e-3`).
+  The gains shrink fast (0.13, 0.02, 0.07 nats), the signature of a
+  **data-limited** regime: every size sees the same ~22M unique tokens (~7.4
+  epochs).
+- **`xl` at `lr = 3e-3` diverges.** It starts *best* of all (val 2.742 at step
+  500), then blows up between steps 500–2000 (train 2.97 → 3.86, val 2.74 →
+  3.76) and only slowly recovers as the LR decays — ending at val 2.962, worse
+  than every smaller model. Weights stay finite (no NaNs, max |w| ≈ 6.6): a
+  **training instability, not a capacity limit**.
+- **Lowering the LR fixes it.** `xl_lr1e-3` (same 27M model, only `lr = 1e-3`)
+  trains stably, is the best run overall (best val 1.478, ppl 4.38), and even
+  learns fastest early. This confirms the blow-up was an **optimization** problem:
+  `lr = 3e-3` was simply too high for the largest model.
+- The second half of `xl_lr1e-3` is noisier (train loss oscillates ~1.1–1.5, val
+  spikes at steps 15000/17000); this looks like minibatch/eval noise plus mild
+  overfitting (train ~1.27 vs val ~1.5) rather than a new instability.
 
 ## Caveats
 
 - Single seed; no error bars.
-- **Fixed LR across sizes.** Larger models often need a lower LR — the `xl`
-  result is direct evidence of this, so the sweep confounds size with LR.
+- **Fixed LR across the main sweep.** Larger models need a lower LR — the `xl`
+  divergence and its `1e-3` fix are direct evidence. The original sweep therefore
+  confounds size with LR; only `xl_lr1e-3` isolates the LR change.
 - **Fixed data/tokenizer.** The tokenizer is trained on the documents, so scaling
   data would retrain it and change the vocab — a separate experiment.
 
 ## Next steps
 
-- Re-run `xl` with a lower peak LR (e.g. 1e-3) and/or a longer warmup, to confirm
-  the instability is optimization-related rather than capacity-related.
-- Then scale **data** (more TinyStories) to test whether the flattening `s → m → l`
-  trend is data-limited.
+- ~~Re-run `xl` with a lower peak LR~~ **Done** — `xl_lr1e-3` (1e-3) trains stably
+  and is the best run.
+- **Scale data** (more TinyStories) to test whether the flattening trend is
+  data-limited. This is the most likely next bottleneck.
+- Optionally sweep the LR for the larger models (e.g. 1.5e-3 vs 1e-3) to find the
+  best value rather than just a stable one.
 
 ## Artifacts
 
 ```
-artifacts/runs/scaling/{s,m,l,xl}/
+artifacts/runs/scaling/{s,m,l,xl,xl_lr1e-3}/
 ├── best.pt                  # best validation loss checkpoint
 ├── latest.pt                # last checkpoint (step 20000)
 └── events.out.tfevents.*    # TensorBoard logs (scalars, config, throughput, compute)
@@ -111,6 +129,7 @@ artifacts/runs/scaling/{s,m,l,xl}/
 
 ```bash
 scripts/run_scaling.sh            # trains s, m, l, xl sequentially
+uv run python scripts/train.py --config configs/experiments/scaling/xl_lr1e-3.yaml
 uv run tensorboard --logdir artifacts/runs
 ```
 
