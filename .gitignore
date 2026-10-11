@@ -1,5 +1,6 @@
 # Custom
 playground.py
+.DS_Store
 
 # Project datasets and artifacts
 /data/
