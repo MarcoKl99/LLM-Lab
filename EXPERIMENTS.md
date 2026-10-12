@@ -100,22 +100,28 @@ and compute (20k steps); vary only the unique-data budget `D`. ·
 
 ---
 
-## 6. Scaling model II — bigger models · **TODO (running)**
+## 6. Scaling model II — bigger models (undertrained)
 
-**Question:** at the adequate data budget (`D = 164M`, 20k steps), does a **larger
-model** help? Fix data + compute; scale width/depth (aspect ratio 64, head_dim 64)
-and scale LR down with width.
+**Question:** with data adequate for the *smallest* model (`xl`, 27M), what happens
+if we scale the **model** up (52M, 88M) at the same fixed data/compute budget? ·
+[details](docs/scaling_model/model_scaling.md)
 
-| Run | `n_layer`/`n_head`/`n_embd` | Params | LR |
-|---|---|---|---|
-| `xl` (reference = `scaling_data/d164m`) | 8/8/512 | 27.4M | 1e-3 |
-| `xl2` | 10/10/640 | 51.9M | 8e-4 |
-| `xl3` | 12/12/768 | 88.3M | 6e-4 |
+| Run | Params | LR | Tokens/param | Best val loss | Best ppl |
+|---|---|---|---|---|---|
+| `xl` (ref = `scaling_data/d164m`) | 27.4M | 1e-3 | ~6 | 1.936 | 6.93 |
+| `xl2` | 51.9M | 8e-4 | ~3 | 1.883 | 6.57 |
+| `xl3` | 88.3M | 6e-4 | ~1.9 | 1.894 | 6.65 |
 
-**Status:** results pending. **Hypothesis:** the bigger models are
-**data/compute-starved** at this budget (~2–3 tokens/param vs Chinchilla's ~20),
-so we may see diminishing — or even negative — returns. Either outcome is
-informative.
+**Lessons:**
+- **Don't read a trend into these numbers.** They're single runs with no error
+  bars — the ~0.06-nat spread is noise. And the two larger models are
+  **undertrained** here by design (data/compute-starved).
+- **The one clear finding is instability**: `xl3` (88M) spikes in validation loss
+  across steps 13k–16k (a **+0.10 jump at step 15500**) and then recovers — the
+  same family as the earlier `xl@3e-3` blow-up, just milder. **Bigger models are
+  harder to keep stable.**
+- Both facts point the same way: to scale the model you must **scale data and
+  compute with it** *and* mind optimisation stability.
 
 ---
 
