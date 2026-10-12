@@ -8,6 +8,7 @@ through exactly the same code.
 from __future__ import annotations
 
 import math
+import os
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -228,6 +229,18 @@ class Trainer:
         self.best_val_loss = checkpoint["best_val_loss"]
         return int(checkpoint["step"])
 
+    @staticmethod
+    def _atomic_save(state: dict, path: Path) -> None:
+        """Save ``state`` to ``path`` atomically (write a temp file, then rename).
+
+        The atomic rename means a concurrent process — e.g. a periodic sync to
+        Google Drive — never sees a half-written checkpoint, and a crash mid-save
+        leaves any previous file intact.
+        """
+        tmp = path.parent / f"{path.name}.tmp"
+        torch.save(state, tmp)
+        os.replace(tmp, path)
+
     def _save_checkpoint(self, step: int, *, is_best: bool) -> None:
         state = {
             "step": step,
@@ -236,6 +249,6 @@ class Trainer:
             "scheduler": self.scheduler.state_dict(),
             "best_val_loss": self.best_val_loss,
         }
-        torch.save(state, self.run_dir / "latest.pt")
+        self._atomic_save(state, self.run_dir / "latest.pt")
         if is_best:
-            torch.save(state, self.run_dir / "best.pt")
+            self._atomic_save(state, self.run_dir / "best.pt")

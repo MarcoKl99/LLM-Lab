@@ -205,3 +205,31 @@ def test_train_resumes_from_checkpoint(tmp_path: Path) -> None:
 
     assert len(history["train_loss"]) == 3
     assert (run_dir / "latest.pt").exists()
+
+
+def test_checkpoints_leave_no_tmp_files(tmp_path: Path) -> None:
+    trainer, run_dir = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    assert (run_dir / "latest.pt").exists()
+    assert not list(run_dir.glob("*.tmp"))
+
+
+def test_atomic_save_preserves_existing_checkpoint_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trainer, run_dir = _build_trainer(tmp_path)
+    trainer.train(max_steps=5, eval_interval=5, progress=False)
+    before = (run_dir / "latest.pt").read_bytes()
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("simulated disk failure")
+
+    monkeypatch.setattr("llm_lab.training.trainer.torch.save", boom)
+    with pytest.raises(RuntimeError):
+        trainer._save_checkpoint(10, is_best=False)
+
+    # the failure hit the temp file, so the previous checkpoint is untouched
+    assert (run_dir / "latest.pt").read_bytes() == before
+    trainer.logger.close()
