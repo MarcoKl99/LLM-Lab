@@ -31,6 +31,7 @@ def _build_trainer(
     tokens_per_step: int | None = None,
     unique_train_tokens: int | None = None,
     learning_rate: float = 1e-2,
+    amp: bool = False,
 ) -> tuple[Trainer, Path]:
     vocab, context = 20, 8
     model = model or LSTMLanguageModel(vocab_size=vocab, hidden_size=16, num_layers=1)
@@ -56,6 +57,7 @@ def _build_trainer(
         early_stop_min_delta=early_stop_min_delta,
         tokens_per_step=tokens_per_step,
         unique_train_tokens=unique_train_tokens,
+        amp=amp,
     )
     return trainer, run_dir
 
@@ -205,6 +207,21 @@ def test_train_resumes_from_checkpoint(tmp_path: Path) -> None:
 
     assert len(history["train_loss"]) == 3
     assert (run_dir / "latest.pt").exists()
+
+
+def test_trainer_amp_is_noop_off_cuda(tmp_path: Path) -> None:
+    # AMP is CUDA-only; on the test's CPU device it must stay disabled and train
+    # normally (autocast + GradScaler are no-ops).
+    trainer, _ = _build_trainer(tmp_path, amp=True)
+
+    assert trainer.amp_enabled is False
+    assert trainer.scaler.is_enabled() is False
+
+    history = trainer.train(max_steps=5, eval_interval=5, progress=False)
+    trainer.logger.close()
+
+    assert len(history["train_loss"]) == 5
+    assert len(history["val_loss"]) == 1
 
 
 def test_checkpoints_leave_no_tmp_files(tmp_path: Path) -> None:

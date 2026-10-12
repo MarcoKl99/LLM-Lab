@@ -31,6 +31,14 @@ from llm_lab.utils.logging import Logger
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a language model.")
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument(
+        "--amp",
+        action="store_true",
+        help=(
+            "Enable Automatic Mixed Precision (autocast + GradScaler). Only has "
+            "an effect on CUDA; on MPS/CPU it is a no-op."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -145,6 +153,8 @@ def main() -> None:
             early_stop_min_delta=early_stopping.get("min_delta", 0.0),
             tokens_per_step=tokens_per_step,
             unique_train_tokens=unique_train_tokens,
+            amp=args.amp or training.get("amp", False),
+            amp_dtype=training.get("amp_dtype", "auto"),
         )
 
         print(

@@ -53,6 +53,8 @@ class Trainer:
         early_stop_min_delta: float = 0.0,
         tokens_per_step: int | None = None,
         unique_train_tokens: int | None = None,
+        amp: bool = False,
+        amp_dtype: str = "auto",
     ) -> None:
         self.model = model.to(device)
         self.optimizer = optimizer
@@ -73,9 +75,35 @@ class Trainer:
         self.unique_train_tokens = unique_train_tokens
         self.n_params = sum(p.numel() for p in self.model.parameters())
 
+        # Automatic Mixed Precision. Only CUDA has tensor cores worth using here,
+        # so on MPS/CPU this stays off and everything below is a no-op.
+        self.amp_enabled = amp and device.type == "cuda"
+        if amp_dtype == "auto":
+            # Turing (e.g. T4) has fp16 but not bf16 tensor cores; Ampere+ has both.
+            amp_dtype = (
+                "bfloat16"
+                if self.amp_enabled and torch.cuda.is_bf16_supported()
+                else "float16"
+            )
+        self.amp_dtype = {
+            "bfloat16": torch.bfloat16,
+            "float16": torch.float16,
+        }[amp_dtype]
+        # Loss scaling is only needed for fp16; bf16 has fp32's range.
+        self.scaler = torch.amp.GradScaler(
+            device.type, enabled=self.amp_enabled and self.amp_dtype == torch.float16
+        )
+
     def _loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        logits = self.model(x)
-        return F.cross_entropy(logits.reshape(-1, self.vocab_size), y.reshape(-1))
+        with torch.autocast(
+            device_type=self.device.type,
+            dtype=self.amp_dtype,
+            enabled=self.amp_enabled,
+        ):
+            logits = self.model(x)
+            return F.cross_entropy(
+                logits.reshape(-1, self.vocab_size), y.reshape(-1)
+            )
 
     def _progress_metrics(
         self,
@@ -167,10 +195,12 @@ class Trainer:
 
             loss = self._loss(x, y)
             self.optimizer.zero_grad(set_to_none=True)
-            loss.backward()
+            self.scaler.scale(loss).backward()
             if self.grad_clip is not None:
+                self.scaler.unscale_(self.optimizer)
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            self.optimizer.step()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
             self.scheduler.step()
             history["train_loss"].append(loss.item())
 
