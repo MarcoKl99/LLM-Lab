@@ -125,3 +125,26 @@ The three axes — **model size, data, compute** — all show **diminishing retu
 The natural next step is finding the **compute-optimal balance** between them
 (scale data *and* compute *with* the model), and eventually moving beyond
 pre-training (instruction tuning, alignment).
+
+---
+
+## References
+
+The scaling thread rests on two papers:
+
+- **Kaplan et al., 2020** — *Scaling Laws for Neural Language Models* (OpenAI),
+  [arXiv:2001.08361](https://arxiv.org/abs/2001.08361). The original N/D/C power
+  laws; implied growing model size much faster than data.
+- **Hoffmann et al., 2022** — *Training Compute-Optimal Large Language Models*
+  (DeepMind), [arXiv:2203.15556](https://arxiv.org/abs/2203.15556). The
+  **"Chinchilla"** paper (named after their ~70B model). It corrected Kaplan: for
+  a compute-optimal run, **model size and training tokens should scale in equal
+  proportions — ~20 tokens per parameter**. Their 70B model (1.4T tokens) beat
+  Gopher-280B, GPT-3-175B and MT-NLG-530B at equal compute, because those were
+  *undertrained*.
+
+This is the lens for experiments 3–6: moving one axis at a time flattens out
+(non-optimal); the goal is to scale data **and** compute **with** the model. Note
+that modern models often train *past* Chinchilla (hundreds–thousands of
+tokens/param) because **inference** cost dominates — Chinchilla only optimizes
+*training* compute.
