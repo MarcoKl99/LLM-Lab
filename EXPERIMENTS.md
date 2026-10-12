@@ -125,6 +125,29 @@ if we scale the **model** up (52M, 88M) at the same fixed data/compute budget? �
 
 ---
 
+## 7. Colab + AMP (validation)
+
+**Question:** does Automatic Mixed Precision (AMP) give the *same* result as local
+FP32 training, and is it *faster* on a CUDA GPU? · [details](docs/colab/amp.md)
+
+Same config as the local TinyStories GPT (`tinystories/gpt`), run on a free Colab
+T4 with `amp: true`.
+
+| | Device | Precision | Best val loss | Throughput |
+|---|---|---|---|---|
+| local | M4 Pro | FP32 | 1.6939 | ~176k tok/s |
+| `colab/amp` | T4 | **FP16** | **1.6935** | **~299k tok/s** |
+
+**Lessons:**
+- **AMP is numerically sound**: val loss matches to 4 decimals.
+- **~1.7× faster** on the T4 for this small model (the gap grows with model size).
+- **Gotcha:** `torch.cuda.is_bf16_supported()` defaults to *including emulation*,
+  so it returns `True` even on a T4 (which has no native bf16). Fixed by passing
+  `including_emulation=False` → `auto` now picks **fp16 on T4**, **bf16 on
+  A100/H100**.
+
+---
+
 ## Where this points
 
 The three axes — **model size, data, compute** — all show **diminishing returns**.
