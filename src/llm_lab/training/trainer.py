@@ -79,10 +79,14 @@ class Trainer:
         # so on MPS/CPU this stays off and everything below is a no-op.
         self.amp_enabled = amp and device.type == "cuda"
         if amp_dtype == "auto":
-            # Turing (e.g. T4) has fp16 but not bf16 tensor cores; Ampere+ has both.
+            # Native bf16 tensor cores need Ampere+ (compute capability >= 8.0);
+            # Turing (e.g. T4) has fp16 tensor cores only. NOTE: is_bf16_supported()
+            # defaults to including *software emulation*, which returns True even on
+            # a T4 — so we must exclude emulation to detect real tensor-core support.
             amp_dtype = (
                 "bfloat16"
-                if self.amp_enabled and torch.cuda.is_bf16_supported()
+                if self.amp_enabled
+                and torch.cuda.is_bf16_supported(including_emulation=False)
                 else "float16"
             )
         self.amp_dtype = {
