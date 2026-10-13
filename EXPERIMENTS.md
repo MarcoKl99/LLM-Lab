@@ -148,6 +148,33 @@ T4 with `amp: true`.
 
 ---
 
+## 8. Corpus swap: TinyStories → FineWeb-Edu
+
+**Question:** what changes when we move from TinyStories to *real* web text?
+**One change only** — same model (`xl3`, 88M), same vocab *size*, same data budget
+(`D = 164M`), same compute (20k steps). · [details](docs/fineweb_edu/corpus-only/xl3.md)
+
+| | FineWeb-Edu | TinyStories (ref) |
+|---|---|---|
+| Best val loss | 2.915 | 1.894 |
+| Best ppl | 18.45 | 6.65 |
+| Instability? | **none** | +0.10 spike @ 15500 |
+
+**Lessons:**
+- **It works on real text.** Samples go from noise to fluent, encyclopedic-style
+  prose (real vocabulary, correct grammar, the right *register*) — but
+  **hallucinated facts** ("the Southern Ocean is the largest continent"). At 88M
+  params / 164M tokens it learns the *form* of knowledge, not the content.
+- **Cross-corpus loss is not comparable** — FineWeb-Edu is far harder, so a higher
+  loss is expected, not a regression.
+- **The `xl3` instability vanished** on the new corpus → it was likely
+  data-related (or stochastic), not inherent to the 88M model.
+
+**Next:** larger tokenizer (vocab 8k/16k/32k) → then more data + steps → then a
+larger model.
+
+---
+
 ## Where this points
 
 The three axes — **model size, data, compute** — all show **diminishing returns**.

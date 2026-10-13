@@ -59,9 +59,25 @@ def _tinystories_documents(raw_dir: Path, limit: int | None) -> Iterator[str]:
         yield example["text"]
 
 
+def _fineweb_edu_documents(raw_dir: Path, limit: int | None) -> Iterator[str]:
+    from datasets import load_dataset
+
+    dataset = load_dataset(
+        "HuggingFaceFW/fineweb-edu",
+        name="sample-10BT",
+        split="train",
+        streaming=True,
+    )
+    for index, example in enumerate(dataset):
+        if limit is not None and index >= limit:
+            break
+        yield example["text"]
+
+
 DOCUMENT_LOADERS: dict[str, Callable[[Path, int | None], Iterator[str]]] = {
     "tiny_shakespeare": _shakespeare_documents,
     "tinystories": _tinystories_documents,
+    "fineweb_edu": _fineweb_edu_documents,
 }
 
 

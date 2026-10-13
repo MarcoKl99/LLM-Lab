@@ -1,0 +1,52 @@
+# Step 1 of the "real knowledge" line: the SAME model as the TinyStories xl3 run
+# (88M, 12/12/768, vocab 4096), the SAME data budget and steps — only the corpus
+# changes (TinyStories -> FineWeb-Edu), plus the tokenizer it produces.
+#
+# Goal: experience one change at a time. Compare val/loss and, especially, the
+# generated samples against the TinyStories xl3 run.
+experiment: fineweb_edu
+run_name: xl3
+seed: 0
+device: auto
+
+data:
+  corpus: fineweb_edu
+  raw_dir: data/raw
+  processed_dir: data/processed/fineweb_edu
+  val_fraction: 0.01
+  context_window: 128
+  max_documents: 400000
+  max_train_tokens: 164000000
+  tokenizer:
+    vocab_size: 4096
+    output: artifacts/tokenizer/fineweb_edu_bpe.json
+
+model:
+  type: gpt
+  n_layer: 12
+  n_head: 12
+  n_embd: 768
+  dropout: 0.0
+  tie_weights: true
+
+training:
+  batch_size: 64
+  learning_rate: 6.0e-4
+  weight_decay: 0.0
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  max_steps: 20000
+  eval_interval: 500
+  eval_batches: 20
+  log_interval: 50
+  grad_clip: 1.0
+  checkpoint_dir: artifacts/runs
+  resume: true
+  amp: true
+  amp_dtype: auto
+
+sampling:
+  prompt: "The history of"
+  max_new_tokens: 200
+  temperature: 0.8
+  top_k: 50

@@ -97,7 +97,10 @@ def plot_comparison(run_dirs: Sequence[Path], out: Path) -> None:
 
     for run_dir in run_dirs:
         scalars = read_scalars(run_dir)
-        name = run_dir.name
+        # Include the parent (experiment) folder so runs that share a name (e.g.
+        # `scaling_model/xl3` vs `fineweb_edu/xl3`) are distinguishable.
+        parts = run_dir.parts
+        name = "/".join(parts[-2:]) if len(parts) >= 2 else run_dir.name
         _plot_tag(scalars, "train/loss", axes[0], label=name)
         _plot_tag(scalars, "val/loss", axes[1], label=name, marker="o", markersize=3)
 
