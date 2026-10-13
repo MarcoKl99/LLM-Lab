@@ -1,0 +1,54 @@
+# Tokenizer sweep on FineWeb-Edu — one change: the tokenizer (vocab size).
+#
+# Same model (xl3), same corpus, same token/data budget, same compute as the
+# corpus-only run (`fineweb_edu/xl3`, vocab 4096). Each vocab needs its own
+# tokenizer and its own tokenized tensors.
+#
+# NOTE: per-token loss is NOT comparable across vocab sizes — compare
+# bits-per-byte (loss_per_token * tokens_per_byte / ln2) and fertility.
+experiment: tokenizer
+run_name: v8192
+seed: 0
+device: auto
+
+data:
+  corpus: fineweb_edu
+  raw_dir: data/raw
+  processed_dir: data/processed/fineweb_edu_v8192
+  val_fraction: 0.01
+  context_window: 128
+  max_documents: 400000
+  max_train_tokens: 164000000
+  tokenizer:
+    vocab_size: 8192
+    output: artifacts/tokenizer/fineweb_edu_v8192_bpe.json
+
+model:
+  type: gpt
+  n_layer: 12
+  n_head: 12
+  n_embd: 768
+  dropout: 0.0
+  tie_weights: true
+
+training:
+  batch_size: 64
+  learning_rate: 6.0e-4
+  weight_decay: 0.0
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  max_steps: 20000
+  eval_interval: 500
+  eval_batches: 20
+  log_interval: 50
+  grad_clip: 1.0
+  checkpoint_dir: artifacts/runs
+  resume: true
+  amp: true
+  amp_dtype: auto
+
+sampling:
+  prompt: "The history of"
+  max_new_tokens: 200
+  temperature: 0.8
+  top_k: 50
