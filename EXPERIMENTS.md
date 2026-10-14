@@ -175,6 +175,31 @@ larger model.
 
 ---
 
+## 9. Tokenizer sweep: vocab size
+
+**Question:** which tokenizer vocab size? **One change** — vocab only; same model
+(`xl3`), corpus (FineWeb-Edu), data budget (`D = 164M`) and compute (20k steps). ·
+[details](docs/fineweb_edu/tokenizer/vocab_sweep.md)
+
+| Vocab | Params | tokens/byte | Best val loss | **bits/byte** |
+|---|---|---|---|---|
+| 4096 (baseline) | 88.3M | 0.287 | 2.915 | 1.208 |
+| 8192 | 91.4M | 0.254 | 3.220 | 1.182 |
+| **16384** | 97.7M | 0.232 | 3.462 | **1.158** |
+| 32768 | 110.3M | 0.216 | 4.176 | 1.304 |
+
+**Lessons:**
+- **Per-token loss is not comparable across vocabs** (bigger tokens → higher
+  per-token loss). The fair metric is **bits-per-byte**.
+- **Bits-per-byte is U-shaped, minimised at ~16k.** 32k is past the knee:
+  fertility improves only −6.6% while per-token loss jumps +21%.
+- Caveat: the embedding grows with vocab (88M→110M), so 32k is also more
+  undertrained — not *purely* a tokenizer effect.
+
+**Next:** ~16k tokenizer → more data + steps → larger model.
+
+---
+
 ## Where this points
 
 The three axes — **model size, data, compute** — all show **diminishing returns**.
