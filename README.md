@@ -63,12 +63,26 @@ LLM-Lab/
 │   ├── plot_curves.py
 │   └── inspect_tokens.py
 ├── tests/                   # mirrors src/llm_lab
-├── docs/                    # experiment write-ups + curve figures
-│   ├── shakespeare/
-│   └── tinystories/
+├── docs/                    # dataset notes + experiment write-ups + figures
+│   ├── datasets/            # one short note per corpus (+ sample documents)
+│   ├── shakespeare/         # first baselines
+│   ├── tinystories/         # TinyStories baselines
+│   ├── scaling*/            # scaling experiments (size / data / compute)
+│   └── fineweb_edu/         # corpus swap + tokenizer sweep
 ├── data/                    # raw + processed data         (gitignored)
 └── artifacts/               # tokenizers, checkpoints, logs (gitignored)
 ```
+
+## Datasets 📚
+
+The corpora we train on — each has a short note with **sample documents** in
+[`docs/datasets/`](docs/datasets/):
+
+| Corpus | Shape | Used by |
+|---|---|---|
+| [Tiny Shakespeare](docs/datasets/tiny_shakespeare.md) | single document (~1.1M chars) | first baselines |
+| [TinyStories](docs/datasets/tinystories.md) | short children's stories, `<\|endoftext\|>`-separated | baselines + scaling sweeps |
+| [FineWeb-Edu](docs/datasets/fineweb_edu.md) | educational web pages (~1.3T tokens total; we stream a slice) | the "real knowledge" line |
 
 ## Quickstart 🏃
 
