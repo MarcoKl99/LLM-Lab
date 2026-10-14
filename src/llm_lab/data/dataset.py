@@ -16,6 +16,20 @@ from torch.utils.data import DataLoader, Dataset
 from llm_lab.data.tokenizer import BPETokenizer
 
 
+def storage_dtype(vocab_size: int) -> torch.dtype:
+    """Smallest integer dtype that holds every token id in ``[0, vocab_size)``.
+
+    Token ids are stored on disk in the smallest **lossless** dtype (int16 for a
+    vocab up to 32768), which shrinks the token files 4x versus int64. The model
+    still sees int64 ids — :class:`LMDataset` casts each window back to ``long``.
+    """
+    if vocab_size <= 2**15:  # ids 0..32767 fit a signed int16
+        return torch.int16
+    if vocab_size <= 2**31:
+        return torch.int32
+    return torch.int64
+
+
 def encode_documents(
     tokenizer: BPETokenizer,
     documents: Iterable[str],
@@ -27,6 +41,7 @@ def encode_documents(
     If ``eos_id`` is given, it is appended after every document so the model
     learns document boundaries rather than predicting across unrelated texts.
     """
+    dtype = storage_dtype(tokenizer.vocab_size)
     pieces: list[Tensor] = []
     batch: list[str] = []
 
@@ -38,7 +53,7 @@ def encode_documents(
             flat.extend(ids)
             if eos_id is not None:
                 flat.append(eos_id)
-        pieces.append(torch.tensor(flat, dtype=torch.long))
+        pieces.append(torch.tensor(flat, dtype=dtype))
         batch.clear()
 
     for text in documents:
@@ -48,7 +63,7 @@ def encode_documents(
     flush()
 
     if not pieces:
-        return torch.empty(0, dtype=torch.long)
+        return torch.empty(0, dtype=dtype)
     return torch.cat(pieces)
 
 
@@ -114,8 +129,10 @@ class LMDataset(Dataset[tuple[Tensor, Tensor]]):
             raise IndexError(
                 f"index {index} is out of range for LMDataset of size {len(self)}"
             )
-        x = self.tokens[index : index + self.context_window]
-        y = self.tokens[index + 1 : index + self.context_window + 1]
+        # Tokens may be stored in a smaller dtype (e.g. int16); the model needs
+        # int64 ids, so cast the (small) window back to long here.
+        x = self.tokens[index : index + self.context_window].long()
+        y = self.tokens[index + 1 : index + self.context_window + 1].long()
         return x, y
 
 

@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 from llm_lab.data.corpus import load_documents
-from llm_lab.data.dataset import encode_documents, split_train_val
+from llm_lab.data.dataset import encode_documents, split_train_val, storage_dtype
 from llm_lab.data.tokenizer import BPETokenizer
 
 EOS_TOKEN = "<|endoftext|>"
@@ -45,6 +45,11 @@ def prepare_from_documents(
     eos_id = tokenizer.token_id(eos_token) if eos_token is not None else None
     tokens = encode_documents(tokenizer, documents, eos_id=eos_id)
     train_tokens, val_tokens = split_train_val(tokens, val_fraction=val_fraction)
+
+    # Store token ids in the smallest lossless dtype (int16 for vocab <= 32768),
+    # which makes the token files 4x smaller than int64.
+    dtype = storage_dtype(tokenizer.vocab_size)
+    train_tokens, val_tokens = train_tokens.to(dtype), val_tokens.to(dtype)
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     torch.save(train_tokens, processed_dir / "train.pt")

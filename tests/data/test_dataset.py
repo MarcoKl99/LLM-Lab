@@ -12,6 +12,7 @@ from llm_lab.data.dataset import (
     encode_documents,
     limit_tokens,
     split_train_val,
+    storage_dtype,
 )
 from llm_lab.data.tokenizer import BPETokenizer
 
@@ -103,6 +104,22 @@ def test_limit_tokens_rejects_non_positive() -> None:
         limit_tokens(torch.arange(10), 0)
 
 
+def test_storage_dtype_picks_smallest_lossless() -> None:
+    assert storage_dtype(1024) == torch.int16
+    assert storage_dtype(2**15) == torch.int16  # ids 0..32767
+    assert storage_dtype(2**15 + 1) == torch.int32
+    assert storage_dtype(100_000) == torch.int32
+
+
+def test_dataset_casts_windows_back_to_long() -> None:
+    tokens = torch.arange(10, dtype=torch.int16)
+    x, y = LMDataset(tokens, context_window=4)[0]
+    assert x.dtype == torch.long
+    assert y.dtype == torch.long
+    assert torch.equal(x, torch.tensor([0, 1, 2, 3]))
+    assert torch.equal(y, torch.tensor([1, 2, 3, 4]))
+
+
 def test_iteration_yields_every_window_once() -> None:
     dataset = LMDataset(torch.arange(10), context_window=4)
     assert len(list(dataset)) == len(dataset)
@@ -141,7 +158,8 @@ def test_encode_corpus_matches_tokenizer() -> None:
     tokenizer = BPETokenizer.train(["hello hello hello world"], vocab_size=270)
     text = "hello world"
     encoded = encode_corpus(tokenizer, text)
-    assert encoded.dtype == torch.long
+    # stored in the smallest lossless dtype (int16 for a small vocab)
+    assert encoded.dtype == torch.int16
     assert encoded.tolist() == tokenizer.encode(text)
 
 

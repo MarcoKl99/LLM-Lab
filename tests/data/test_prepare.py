@@ -35,8 +35,11 @@ def test_prepare_writes_artifacts_and_splits(tmp_path: Path) -> None:
     assert result.vocab_size == tokenizer.vocab_size
     assert result.train_tokens == len(train)
     assert result.val_tokens == len(val)
-    assert torch.equal(train, total[: len(train)])
-    assert torch.equal(val, total[len(train) :])
+    # token ids are stored in a small lossless dtype (int16 for vocab <= 32768)
+    assert train.dtype == torch.int16
+    assert val.dtype == torch.int16
+    assert torch.equal(train.long(), total[: len(train)])
+    assert torch.equal(val.long(), total[len(train) :])
 
 
 def test_prepare_from_documents_separates_with_eos(tmp_path: Path) -> None:
@@ -65,5 +68,5 @@ def test_prepare_from_documents_separates_with_eos(tmp_path: Path) -> None:
     total = torch.tensor(expected)
 
     assert len(train) + len(val) == len(total)
-    assert torch.equal(train, total[: len(train)])
-    assert torch.equal(val, total[len(train) :])
+    assert torch.equal(train.long(), total[: len(train)])
+    assert torch.equal(val.long(), total[len(train) :])
