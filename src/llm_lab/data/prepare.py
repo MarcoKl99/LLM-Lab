@@ -2,11 +2,16 @@
 
 This is the bridge from raw documents to the artifacts a training run consumes.
 Keeping it here (rather than in a script) makes it testable and reusable.
+
+Large corpora are handled with **bounded memory**: the documents are streamed to
+a temporary cache file once, then read back twice — once to train the tokenizer,
+once to encode. We never hold the whole corpus (or a full document list) in RAM.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +34,24 @@ class PrepareResult:
     processed_dir: Path
 
 
+def _cache_documents(documents: Iterable[str], path: Path) -> int:
+    """Stream ``documents`` to ``path`` as JSONL; return the total char count."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    chars = 0
+    with path.open("w", encoding="utf-8") as file:
+        for document in documents:
+            file.write(json.dumps(document) + "\n")
+            chars += len(document)
+    return chars
+
+
+def _read_cached(path: Path) -> Iterator[str]:
+    """Yield the documents cached by :func:`_cache_documents` (streaming)."""
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            yield json.loads(line)
+
+
 def prepare_from_documents(
     documents: Iterable[str],
     vocab_size: int,
@@ -37,13 +60,24 @@ def prepare_from_documents(
     val_fraction: float,
     eos_token: str | None = EOS_TOKEN,
 ) -> PrepareResult:
-    """Train a tokenizer on ``documents``, save it, and write train/val tensors."""
-    documents = list(documents)
-    tokenizer = BPETokenizer.train(documents, vocab_size=vocab_size)
-    tokenizer.save(tokenizer_path)
+    """Train a tokenizer on ``documents``, save it, and write train/val tensors.
 
-    eos_id = tokenizer.token_id(eos_token) if eos_token is not None else None
-    tokens = encode_documents(tokenizer, documents, eos_id=eos_id)
+    Documents are streamed to a temporary cache so they can be read twice
+    (tokenizer training, then encoding) while keeping memory bounded.
+    """
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = processed_dir / "documents.jsonl"
+    try:
+        chars = _cache_documents(documents, cache_path)
+
+        tokenizer = BPETokenizer.train(_read_cached(cache_path), vocab_size=vocab_size)
+        tokenizer.save(tokenizer_path)
+
+        eos_id = tokenizer.token_id(eos_token) if eos_token is not None else None
+        tokens = encode_documents(tokenizer, _read_cached(cache_path), eos_id=eos_id)
+    finally:
+        cache_path.unlink(missing_ok=True)
+
     train_tokens, val_tokens = split_train_val(tokens, val_fraction=val_fraction)
 
     # Store token ids in the smallest lossless dtype (int16 for vocab <= 32768),
@@ -51,12 +85,11 @@ def prepare_from_documents(
     dtype = storage_dtype(tokenizer.vocab_size)
     train_tokens, val_tokens = train_tokens.to(dtype), val_tokens.to(dtype)
 
-    processed_dir.mkdir(parents=True, exist_ok=True)
     torch.save(train_tokens, processed_dir / "train.pt")
     torch.save(val_tokens, processed_dir / "val.pt")
 
     return PrepareResult(
-        chars=sum(len(document) for document in documents),
+        chars=chars,
         vocab_size=tokenizer.vocab_size,
         train_tokens=len(train_tokens),
         val_tokens=len(val_tokens),

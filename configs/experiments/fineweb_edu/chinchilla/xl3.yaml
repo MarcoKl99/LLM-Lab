@@ -19,7 +19,7 @@ data:
   processed_dir: data/processed/fineweb_edu_chinchilla
   val_fraction: 0.01
   context_window: 128
-  max_documents: 5000000
+  max_documents: 3000000
   max_train_tokens: 1954744320
   tokenizer:
     vocab_size: 16384
