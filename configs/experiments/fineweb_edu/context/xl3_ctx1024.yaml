@@ -8,10 +8,15 @@
 #
 #   N      = 98,425,344 params  (xl3 + a 1024-row position table: +688,128 vs ctx 128)
 #   D_seen = k * N              = 20 * 98,425,344 = 1,968,506,880 tokens
-#   tokens/step = batch * context = 64 * 1024 = 65,536
-#   steps       = D / tokens/step = 1,968,506,880 / 65,536 = 30,037
-#   warmup      = 2000 * (8192 / 65,536) = 250   (identical warmup *in tokens*)
-#   eval        = 2000 * (8192 / 65,536) = 250
+#   tokens/step = batch * context = 32 * 1024 = 32,768
+#   steps       = D / tokens/step = 1,968,506,880 / 32,768 = 60,074
+#   warmup      = 2000 * (8192 / 32,768) = 500   (identical warmup *in tokens*)
+#   eval        = 2000 * (8192 / 32,768) = 500
+#
+# NOTE: batch is 32 (not the baseline's 64) to fit a 40 GB A100 — the O(L^2)
+# attention matrix at context 1024 is ~19 GB at batch 64. D and the LR schedule
+# are identical in *tokens*; the only difference vs the baseline is the (slightly
+# noisier) batch. Gradient checkpointing would restore batch 64 if we want it.
 #
 # Compare *bits-per-byte* against chinchilla/xl3 (xl3 @ context 128).
 # Reuses the already-prepared chinchilla token tensors — no prepare needed.
@@ -42,15 +47,15 @@ model:
   tie_weights: true
 
 training:
-  batch_size: 64
+  batch_size: 32
   learning_rate: 6.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
-  warmup_steps: 250
-  max_steps: 30037
-  eval_interval: 250
+  warmup_steps: 500
+  max_steps: 60074
+  eval_interval: 500
   eval_batches: 20
-  log_interval: 13
+  log_interval: 25
   grad_clip: 1.0
   checkpoint_dir: artifacts/runs
   resume: true
