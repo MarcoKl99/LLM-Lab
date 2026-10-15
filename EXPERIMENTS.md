@@ -200,6 +200,44 @@ larger model.
 
 ---
 
+## 10. Chinchilla: compute-optimal `xl3` (FineWeb-Edu, 16k)
+
+**Question:** what if we scale model, data and compute **together**? **One goal** —
+the compute-optimal ("Chinchilla") balance: **k = 20 tokens/param**. Our 97.7M model
+therefore wants **D = 1.955B tokens** = 238,616 steps. ·
+[details](docs/fineweb_edu/chinchilla/xl3.md)
+
+| | |
+|---|---|
+| Model | `xl3` @ vocab 16k — **97,737,216 params** |
+| Data | 1,954,744,320 tokens (k = 20), 1 epoch |
+| Compute | 1.146e18 FLOPs · 238,616 steps · **3.41 h** |
+| Best val loss | **3.256** (step 236,000) |
+| Best ppl | 25.95 |
+| **Best bits/byte** | **1.089** |
+| Instability? | **none** |
+
+vs the *same* model/corpus/tokenizer trained on 164M tokens (11.9× less compute):
+
+| | 164M tokens | **1.955B tokens** |
+|---|---|---|
+| Best val loss | 3.462 | **3.256** |
+| **Best bits/byte** | 1.158 | **1.089** |
+
+**Lessons:**
+- **Compute-optimal training works** — the best result in the project so far
+  (1.089 bits/byte), stable across 238k steps, no instability.
+- **Diminishing returns persist:** ~12× the compute buys ~6% better bits/byte. But
+  unlike the single-axis sweeps, the model is **not undertrained** — it sits *at*
+  the balance.
+- **Scale ≠ knowledge:** samples are fluent and well-structured (real long-range
+  syntax, essay register) but factually hallucinated — a job for fine-tuning.
+
+**Next:** a larger compute-optimal model (~350M @ ~7B tokens) → then supervised
+fine-tuning / alignment on this base.
+
+---
+
 ## Where this points
 
 The three axes — **model size, data, compute** — all show **diminishing returns**.

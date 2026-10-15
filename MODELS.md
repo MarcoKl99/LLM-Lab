@@ -52,6 +52,10 @@ Linear head`. Kept as the non-attention reference point.
 - **Corpus / vocab:** `baseline/gpt` uses the Tiny Shakespeare tokenizer
   (`vocab = 1024`, `context = 64`); all others use the TinyStories tokenizer
   (`vocab = 4096`, `context = 128`).
+- **Params depend on vocab:** the table lists the *vocab-4096* sizes. On the
+  FineWeb-Edu tokenizers the same `xl3` architecture grows to **97.7M** (vocab
+  16k, used by the Chinchilla run) and **110.3M** (vocab 32k) — see the
+  [tokenizer sweep](docs/fineweb_edu/tokenizer/vocab_sweep.md).
 - **Scaling shape:** the sweeps keep `n_embd / n_layer ≈ 64` and, for the larger
   models, `head_dim = 64`.
 - **Next target:** a ~350M GPT, Chinchilla-optimal (~7B tokens), to be trained on

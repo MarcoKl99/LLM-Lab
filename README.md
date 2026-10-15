@@ -68,7 +68,7 @@ LLM-Lab/
 │   ├── shakespeare/         # first baselines
 │   ├── tinystories/         # TinyStories baselines
 │   ├── scaling*/            # scaling experiments (size / data / compute)
-│   └── fineweb_edu/         # corpus swap + tokenizer sweep
+│   └── fineweb_edu/         # corpus swap + tokenizer sweep + chinchilla
 ├── data/                    # raw + processed data         (gitignored)
 └── artifacts/               # tokenizers, checkpoints, logs (gitignored)
 ```
@@ -192,8 +192,11 @@ optimizer/schedule, trainer (including resume), generation, and both models
 - [x] Scale to a larger corpus (TinyStories) with a larger-vocab tokenizer
 - [x] Param-matched LSTM vs. transformer comparison on TinyStories (transformer
       wins: 5.44 vs. 10.2 val perplexity)
-- [ ] Scaling experiments (data / model / compute)
-- [ ] Instruction-tuning / fine-tuning toward a useful assistant
+- [x] Scaling experiments (model size / data / compute)
+- [x] Corpus swap to real web text (FineWeb-Edu)
+- [x] Tokenizer vocab sweep (settled at **16k**)
+- [x] Chinchilla compute-optimal run — 97.7M params, 1.95B tokens (1.089 bits/byte)
+- [ ] Larger compute-optimal model (~350M) → instruction tuning / alignment
 
 ## Principles 📚
 
