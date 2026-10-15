@@ -18,6 +18,9 @@
 # are identical in *tokens*; the only difference vs the baseline is the (slightly
 # noisier) batch. Gradient checkpointing would restore batch 64 if we want it.
 #
+# LR is 3e-4, not the baseline's 6e-4: at context 1024 the baseline LR diverged —
+# val loss climbed back toward ln(vocab) = 9.70 right after warmup ended.
+#
 # Compare *bits-per-byte* against chinchilla/xl3 (xl3 @ context 128).
 # Reuses the already-prepared chinchilla token tensors — no prepare needed.
 experiment: context
@@ -48,7 +51,7 @@ model:
 
 training:
   batch_size: 32
-  learning_rate: 6.0e-4
+  learning_rate: 3.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
   warmup_steps: 500
