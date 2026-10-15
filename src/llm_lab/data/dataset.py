@@ -7,11 +7,11 @@ This module produces those pairs from a 1D tensor of token ids.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Sampler
 
 from llm_lab.data.tokenizer import BPETokenizer
 
@@ -136,6 +136,46 @@ class LMDataset(Dataset[tuple[Tensor, Tensor]]):
         return x, y
 
 
+class ChunkedRandomSampler(Sampler[int]):
+    """Yield random indices in bounded chunks.
+
+    PyTorch's default ``RandomSampler`` builds a **full permutation** of the
+    dataset (``torch.randperm(n).tolist()``), which is O(N) in both memory and
+    time — prohibitive for our multi-billion-window datasets. This sampler draws
+    random indices in fixed-size chunks instead, so memory stays ``O(chunk_size)``.
+
+    Sampling is *with replacement*, which is fine for language-model pre-training.
+    """
+
+    def __init__(
+        self,
+        num_samples: int,
+        *,
+        generator: torch.Generator | None = None,
+        chunk_size: int = 1 << 20,
+    ) -> None:
+        if num_samples < 1:
+            raise ValueError(f"num_samples must be >= 1, got {num_samples}")
+        if chunk_size < 1:
+            raise ValueError(f"chunk_size must be >= 1, got {chunk_size}")
+        self.num_samples = num_samples
+        self.chunk_size = chunk_size
+        self.generator = generator
+
+    def __iter__(self) -> Iterator[int]:
+        produced = 0
+        while produced < self.num_samples:
+            size = min(self.chunk_size, self.num_samples - produced)
+            chunk = torch.randint(
+                0, self.num_samples, (size,), generator=self.generator
+            )
+            yield from chunk.tolist()
+            produced += size
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+
 def build_dataloader(
     tokens: Tensor,
     context_window: int,
@@ -145,7 +185,11 @@ def build_dataloader(
     """Wrap ``tokens`` in an :class:`LMDataset` and a :class:`DataLoader`.
 
     Set ``shuffle=True`` for the training split and leave it ``False`` for
-    validation.
+    validation. Shuffling uses :class:`ChunkedRandomSampler` (bounded memory)
+    rather than PyTorch's default full-permutation sampler.
     """
     dataset = LMDataset(tokens, context_window=context_window)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+    if shuffle:
+        sampler = ChunkedRandomSampler(len(dataset))
+        return DataLoader(dataset, batch_size=batch_size, sampler=sampler)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False)

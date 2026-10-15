@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from llm_lab.data.dataset import (
+    ChunkedRandomSampler,
     LMDataset,
     build_dataloader,
     encode_corpus,
@@ -134,6 +135,42 @@ def test_getitem_out_of_range_raises() -> None:
 def test_negative_index_supported() -> None:
     dataset = LMDataset(torch.arange(10), context_window=4)
     assert torch.equal(dataset[-1][0], dataset[len(dataset) - 1][0])
+
+
+def test_chunked_sampler_yields_valid_indices() -> None:
+    sampler = ChunkedRandomSampler(1000, chunk_size=128)
+
+    indices = list(sampler)
+
+    assert len(indices) == 1000
+    assert len(sampler) == 1000
+    assert all(0 <= index < 1000 for index in indices)
+
+
+def test_chunked_sampler_is_deterministic_with_generator() -> None:
+    first = list(
+        ChunkedRandomSampler(
+            200, generator=torch.Generator().manual_seed(0), chunk_size=32
+        )
+    )
+    second = list(
+        ChunkedRandomSampler(
+            200, generator=torch.Generator().manual_seed(0), chunk_size=32
+        )
+    )
+
+    assert first == second
+
+
+def test_shuffled_dataloader_uses_bounded_sampler() -> None:
+    loader = build_dataloader(
+        torch.arange(100), context_window=4, batch_size=8, shuffle=True
+    )
+
+    xb, yb = next(iter(loader))
+
+    assert xb.shape == (8, 4)
+    assert yb.shape == (8, 4)
 
 
 def test_dataloader_batch_shapes() -> None:
