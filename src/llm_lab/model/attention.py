@@ -1,15 +1,13 @@
-"""Causal multi-head self-attention (manual implementation).
+"""Causal multi-head self-attention.
 
-Explicit QKᵀ/√d, a causal mask, softmax and a weighted sum over values. Kept
-transparent on purpose; ``F.scaled_dot_product_attention`` is a drop-in
-efficiency upgrade we can adopt later.
+Uses ``F.scaled_dot_product_attention``, which on CUDA dispatches to
+FlashAttention / memory-efficient kernels: the L x L score matrix is never
+materialised, so attention memory is O(L) instead of O(L^2) and it is faster.
+``is_causal=True`` applies the causal mask internally.
 """
 
 from __future__ import annotations
 
-import math
-
-import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
@@ -22,10 +20,10 @@ class CausalSelfAttention(nn.Module):
 
         self.n_head = n_head
         self.head_dim = n_embd // n_head
+        self.dropout = dropout
 
         self.qkv = nn.Linear(n_embd, 3 * n_embd)
         self.proj = nn.Linear(n_embd, n_embd)
-        self.attn_dropout = nn.Dropout(dropout)
         self.resid_dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -36,12 +34,13 @@ class CausalSelfAttention(nn.Module):
         k = k.view(batch, length, self.n_head, self.head_dim).transpose(1, 2)
         v = v.view(batch, length, self.n_head, self.head_dim).transpose(1, 2)
 
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        causal = torch.tril(torch.ones(length, length, dtype=torch.bool, device=x.device))
-        scores = scores.masked_fill(~causal, float("-inf"))
-        weights = F.softmax(scores, dim=-1)
-        weights = self.attn_dropout(weights)
+        out = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=True,
+        )
 
-        out = weights @ v
         out = out.transpose(1, 2).contiguous().view(batch, length, n_embd)
         return self.resid_dropout(self.proj(out))
