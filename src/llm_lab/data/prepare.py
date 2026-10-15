@@ -59,19 +59,30 @@ def prepare_from_documents(
     processed_dir: Path,
     val_fraction: float,
     eos_token: str | None = EOS_TOKEN,
+    reuse_tokenizer: bool = False,
 ) -> PrepareResult:
     """Train a tokenizer on ``documents``, save it, and write train/val tensors.
 
     Documents are streamed to a temporary cache so they can be read twice
     (tokenizer training, then encoding) while keeping memory bounded.
+
+    With ``reuse_tokenizer=True`` an existing tokenizer at ``tokenizer_path`` is
+    loaded instead of trained. This keeps a *fixed* tokenizer across a family of
+    models trained on the same corpus (best practice, and it preserves
+    comparability between runs).
     """
     processed_dir.mkdir(parents=True, exist_ok=True)
     cache_path = processed_dir / "documents.jsonl"
     try:
         chars = _cache_documents(documents, cache_path)
 
-        tokenizer = BPETokenizer.train(_read_cached(cache_path), vocab_size=vocab_size)
-        tokenizer.save(tokenizer_path)
+        if reuse_tokenizer and tokenizer_path.exists():
+            tokenizer = BPETokenizer.load(tokenizer_path)
+        else:
+            tokenizer = BPETokenizer.train(
+                _read_cached(cache_path), vocab_size=vocab_size
+            )
+            tokenizer.save(tokenizer_path)
 
         eos_id = tokenizer.token_id(eos_token) if eos_token is not None else None
         tokens = encode_documents(tokenizer, _read_cached(cache_path), eos_id=eos_id)
@@ -124,6 +135,7 @@ def prepare_data(
     processed_dir: Path,
     val_fraction: float,
     max_documents: int | None = None,
+    reuse_tokenizer: bool = False,
 ) -> PrepareResult:
     """Acquire ``corpus`` and prepare it into tokenizer + tensor artifacts."""
     documents = load_documents(corpus, raw_dir=raw_dir, limit=max_documents)
@@ -133,4 +145,5 @@ def prepare_data(
         tokenizer_path=tokenizer_path,
         processed_dir=processed_dir,
         val_fraction=val_fraction,
+        reuse_tokenizer=reuse_tokenizer,
     )

@@ -6,8 +6,8 @@ import pytest
 import torch
 
 from llm_lab.data.dataset import (
-    ChunkedRandomSampler,
     LMDataset,
+    ShuffledChunkSampler,
     build_dataloader,
     encode_corpus,
     encode_documents,
@@ -137,24 +137,32 @@ def test_negative_index_supported() -> None:
     assert torch.equal(dataset[-1][0], dataset[len(dataset) - 1][0])
 
 
-def test_chunked_sampler_yields_valid_indices() -> None:
-    sampler = ChunkedRandomSampler(1000, chunk_size=128)
+def test_shuffled_chunk_sampler_is_a_permutation() -> None:
+    sampler = ShuffledChunkSampler(1000, chunk_size=128)
 
     indices = list(sampler)
 
     assert len(indices) == 1000
     assert len(sampler) == 1000
-    assert all(0 <= index < 1000 for index in indices)
+    assert sorted(indices) == list(range(1000))
 
 
-def test_chunked_sampler_is_deterministic_with_generator() -> None:
+def test_shuffled_chunk_sampler_handles_uneven_final_chunk() -> None:
+    sampler = ShuffledChunkSampler(1000, chunk_size=256)
+
+    indices = list(sampler)
+
+    assert sorted(indices) == list(range(1000))
+
+
+def test_shuffled_chunk_sampler_is_deterministic_with_generator() -> None:
     first = list(
-        ChunkedRandomSampler(
+        ShuffledChunkSampler(
             200, generator=torch.Generator().manual_seed(0), chunk_size=32
         )
     )
     second = list(
-        ChunkedRandomSampler(
+        ShuffledChunkSampler(
             200, generator=torch.Generator().manual_seed(0), chunk_size=32
         )
     )
@@ -162,7 +170,7 @@ def test_chunked_sampler_is_deterministic_with_generator() -> None:
     assert first == second
 
 
-def test_shuffled_dataloader_uses_bounded_sampler() -> None:
+def test_shuffled_dataloader_yields_batches() -> None:
     loader = build_dataloader(
         torch.arange(100), context_window=4, batch_size=8, shuffle=True
     )

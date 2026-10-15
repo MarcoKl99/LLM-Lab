@@ -1,0 +1,64 @@
+# Context-length experiment: does a GPT-2-style 1024-token window help, at the
+# same compute-optimal (Chinchilla) budget?
+#
+# One change only — the context window — against the **Chinchilla `xl3` run**:
+# same model (xl3), corpus (FineWeb-Edu) and tokenizer (vocab 16384). The data
+# budget is re-derived so both runs stay compute-optimal at k = 20 tokens/param
+# (the bigger position table makes N — and therefore D — slightly larger: +0.70%).
+#
+#   N      = 98,425,344 params  (xl3 + a 1024-row position table: +688,128 vs ctx 128)
+#   D_seen = k * N              = 20 * 98,425,344 = 1,968,506,880 tokens
+#   tokens/step = batch * context = 64 * 1024 = 65,536
+#   steps       = D / tokens/step = 1,968,506,880 / 65,536 = 30,037
+#   warmup      = 2000 * (8192 / 65,536) = 250   (identical warmup *in tokens*)
+#   eval        = 2000 * (8192 / 65,536) = 250
+#
+# Compare *bits-per-byte* against chinchilla/xl3 (xl3 @ context 128).
+# Reuses the already-prepared chinchilla token tensors — no prepare needed.
+experiment: context
+run_name: xl3_ctx1024
+seed: 0
+device: auto
+
+data:
+  corpus: fineweb_edu
+  raw_dir: data/raw
+  processed_dir: data/processed/fineweb_edu_chinchilla
+  val_fraction: 0.01
+  context_window: 1024
+  max_documents: 3000000
+  max_train_tokens: 1968506880
+  tokenizer:
+    vocab_size: 16384
+    output: artifacts/tokenizer/fineweb_edu_chinchilla_bpe.json
+    reuse: true
+
+model:
+  type: gpt
+  n_layer: 12
+  n_head: 12
+  n_embd: 768
+  dropout: 0.0
+  tie_weights: true
+
+training:
+  batch_size: 64
+  learning_rate: 6.0e-4
+  weight_decay: 0.0
+  min_lr_ratio: 0.1
+  warmup_steps: 250
+  max_steps: 30037
+  eval_interval: 250
+  eval_batches: 20
+  log_interval: 13
+  grad_clip: 1.0
+  checkpoint_dir: artifacts/runs
+  resume: true
+  amp: true
+  amp_dtype: auto
+
+sampling:
+  prompt: "The history of"
+  max_new_tokens: 200
+  temperature: 0.8
+  top_k: 50

@@ -84,3 +84,34 @@ def test_prepare_from_documents_separates_with_eos(tmp_path: Path) -> None:
     assert len(train) + len(val) == len(total)
     assert torch.equal(train.long(), total[: len(train)])
     assert torch.equal(val.long(), total[len(train) :])
+
+
+def test_prepare_reuses_existing_tokenizer(tmp_path: Path) -> None:
+    tokenizer_path = tmp_path / "tokenizer.json"
+
+    # The first prepare trains and saves a tokenizer.
+    prepare_from_documents(
+        [TEXT],
+        vocab_size=300,
+        tokenizer_path=tokenizer_path,
+        processed_dir=tmp_path / "first",
+        val_fraction=0.2,
+    )
+    original = tokenizer_path.read_bytes()
+
+    # The second reuses it: the file is untouched and the tokens are identical.
+    result = prepare_from_documents(
+        [TEXT],
+        vocab_size=300,
+        tokenizer_path=tokenizer_path,
+        processed_dir=tmp_path / "second",
+        val_fraction=0.2,
+        reuse_tokenizer=True,
+    )
+
+    assert tokenizer_path.read_bytes() == original
+    assert result.vocab_size == BPETokenizer.load(tokenizer_path).vocab_size
+    assert torch.equal(
+        torch.load(tmp_path / "first" / "train.pt"),
+        torch.load(tmp_path / "second" / "train.pt"),
+    )

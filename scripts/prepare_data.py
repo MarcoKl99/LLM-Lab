@@ -33,6 +33,7 @@ def main() -> None:
         processed_dir=Path(data["processed_dir"]),
         val_fraction=data["val_fraction"],
         max_documents=data.get("max_documents"),
+        reuse_tokenizer=data["tokenizer"].get("reuse", False),
     )
 
     print(f"corpus:       {data['corpus']}")
