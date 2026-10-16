@@ -238,6 +238,42 @@ fine-tuning / alignment on this base.
 
 ---
 
+## 11. Context length: 128 → 1024
+
+**Question:** does a GPT-2-style 1024-token window help? **One change only** — the
+context window — against the Chinchilla `xl3` run (128): same model, corpus and
+tokenizer, with the budget re-derived to stay compute-optimal (`k = 20`). ·
+[details](docs/context/xl3_ctx1024.md)
+
+| | ctx 128 | **ctx 1024** | change |
+|---|---|---|---|
+| Params `N` | 97,737,216 | 98,425,344 | +0.7% (bigger position table) |
+| Steps | 238,616 | 60,074 | |
+| Best val loss | 3.2563 | **3.0586** | **−6.1%** |
+| Best ppl | 25.95 | **21.30** | **−17.9%** |
+| **Best bits/byte** | 1.089 | **1.023** | **−6.1%** |
+| Wall-clock | 3.41 h | **3.02 h** | −11% |
+
+**Lessons:**
+- **Long context helps, cleanly** — −6.1% bits/byte from a single variable, no
+  instability, on the same data budget.
+- **It rivals a much bigger compute step:** 12× the compute (Chinchilla vs the
+  164M-token run) also bought ~6%, and 8× the context matched it — while being
+  *faster* in wall-clock (SDPA/FlashAttention + better GPU utilisation at 1024-token
+  sequences).
+- **Train and val track each other** (2.97 vs 3.06) — a healthy run, no
+  overfitting.
+- **A sampler bug was found here (and fixed).** A shard-shuffle sampler read a
+  *single* 1M-token chunk for the first ~32k steps, so the model saw only ~1M unique
+  positions, memorised them, and val loss rose while train loss collapsed to ~0.4.
+  A shard shuffle is only sound when `shard_size ≪ run_length`; for runs that see
+  ≪ 1 epoch, **with-replacement** sampling is correct (draws are ~99.95% distinct at
+  `m/n ≈ 0.1%`).
+
+**Next:** carry the 1024 context into the 354M run.
+
+---
+
 ## Where this points
 
 The three axes — **model size, data, compute** — all show **diminishing returns**.

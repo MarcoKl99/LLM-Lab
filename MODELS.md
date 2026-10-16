@@ -43,6 +43,7 @@ Linear head`. Kept as the non-attention reference point.
 | `xl` | 512 | 8 | 8 | 64 | 27,382,784 |
 | `xl2` | 640 | 10 | 10 | 64 | 51,939,840 |
 | `xl3` | 768 | 12 | 12 | 64 | 88,300,032 |
+| `xl3` @ **ctx 1024** (vocab 16k) | 768 | 12 | 12 | 64 | **98,425,344** |
 
 ### Notes
 
@@ -52,10 +53,13 @@ Linear head`. Kept as the non-attention reference point.
 - **Corpus / vocab:** `baseline/gpt` uses the Tiny Shakespeare tokenizer
   (`vocab = 1024`, `context = 64`); all others use the TinyStories tokenizer
   (`vocab = 4096`, `context = 128`).
-- **Params depend on vocab:** the table lists the *vocab-4096* sizes. On the
-  FineWeb-Edu tokenizers the same `xl3` architecture grows to **97.7M** (vocab
-  16k, used by the Chinchilla run) and **110.3M** (vocab 32k) — see the
-  [tokenizer sweep](docs/fineweb_edu/tokenizer/vocab_sweep.md).
+- **Params depend on vocab *and* context:** the table lists the *vocab-4096,
+  ctx-128* sizes. On the FineWeb-Edu tokenizers the same `xl3` architecture grows
+  to **97.7M** (vocab 16k, used by the Chinchilla run) and **110.3M** (vocab 32k) —
+  see the [tokenizer sweep](docs/fineweb_edu/tokenizer/vocab_sweep.md). The learned
+  absolute position table also scales with the window, so the **ctx-1024** variant
+  of `xl3` (vocab 16k) is **98,425,344** — see the
+  [context experiment](docs/context/xl3_ctx1024.md).
 - **Scaling shape:** the sweeps keep `n_embd / n_layer ≈ 64` and, for the larger
   models, `head_dim = 64`.
 - **Next target:** a ~350M GPT, Chinchilla-optimal (~7B tokens), to be trained on

@@ -68,7 +68,8 @@ LLM-Lab/
 │   ├── shakespeare/         # first baselines
 │   ├── tinystories/         # TinyStories baselines
 │   ├── scaling*/            # scaling experiments (size / data / compute)
-│   └── fineweb_edu/         # corpus swap + tokenizer sweep + chinchilla
+│   ├── fineweb_edu/         # corpus swap + tokenizer sweep + chinchilla
+│   └── context/             # context-length experiment (128 → 1024)
 ├── data/                    # raw + processed data         (gitignored)
 └── artifacts/               # tokenizers, checkpoints, logs (gitignored)
 ```
@@ -196,6 +197,7 @@ optimizer/schedule, trainer (including resume), generation, and both models
 - [x] Corpus swap to real web text (FineWeb-Edu)
 - [x] Tokenizer vocab sweep (settled at **16k**)
 - [x] Chinchilla compute-optimal run — 97.7M params, 1.95B tokens (1.089 bits/byte)
+- [x] Context-length experiment — 128 → 1024 tokens (1.023 bits/byte, −6.1%)
 - [ ] Larger compute-optimal model (~350M) → instruction tuning / alignment
 
 ## Principles 📚

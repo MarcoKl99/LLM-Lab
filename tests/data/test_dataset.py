@@ -139,8 +139,16 @@ def test_negative_index_supported() -> None:
     assert torch.equal(dataset[-1][0], dataset[len(dataset) - 1][0])
 
 
+def test_shuffled_chunk_sampler_warns_about_shard_shuffle() -> None:
+    # Kept for the right regime, but must not be used silently: it is a shard
+    # shuffle and is unsuitable for short runs.
+    with pytest.warns(UserWarning, match="shard shuffle"):
+        ShuffledChunkSampler(1000, chunk_size=128)
+
+
 def test_shuffled_chunk_sampler_is_a_permutation() -> None:
-    sampler = ShuffledChunkSampler(1000, chunk_size=128)
+    with pytest.warns(UserWarning):
+        sampler = ShuffledChunkSampler(1000, chunk_size=128)
 
     indices = list(sampler)
 
@@ -150,7 +158,8 @@ def test_shuffled_chunk_sampler_is_a_permutation() -> None:
 
 
 def test_shuffled_chunk_sampler_handles_uneven_final_chunk() -> None:
-    sampler = ShuffledChunkSampler(1000, chunk_size=256)
+    with pytest.warns(UserWarning):
+        sampler = ShuffledChunkSampler(1000, chunk_size=256)
 
     indices = list(sampler)
 
@@ -158,16 +167,17 @@ def test_shuffled_chunk_sampler_handles_uneven_final_chunk() -> None:
 
 
 def test_shuffled_chunk_sampler_is_deterministic_with_generator() -> None:
-    first = list(
-        ShuffledChunkSampler(
-            200, generator=torch.Generator().manual_seed(0), chunk_size=32
+    with pytest.warns(UserWarning):
+        first = list(
+            ShuffledChunkSampler(
+                200, generator=torch.Generator().manual_seed(0), chunk_size=32
+            )
         )
-    )
-    second = list(
-        ShuffledChunkSampler(
-            200, generator=torch.Generator().manual_seed(0), chunk_size=32
+        second = list(
+            ShuffledChunkSampler(
+                200, generator=torch.Generator().manual_seed(0), chunk_size=32
+            )
         )
-    )
 
     assert first == second
 
@@ -207,7 +217,8 @@ def test_shuffled_chunk_sampler_is_clustered_early() -> None:
     # Documents *why* ShuffledChunkSampler is not the default: with a large chunk
     # it reads one contiguous region until that chunk is exhausted, so early
     # training only ever sees a tiny slice of the corpus.
-    sampler = ShuffledChunkSampler(1_000_000, chunk_size=100_000)
+    with pytest.warns(UserWarning):
+        sampler = ShuffledChunkSampler(1_000_000, chunk_size=100_000)
 
     indices = list(itertools.islice(iter(sampler), 5000))
 
