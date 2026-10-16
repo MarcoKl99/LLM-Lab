@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import itertools
+
 import pytest
 import torch
 
 from llm_lab.data.dataset import (
     LMDataset,
-    ShuffledChunkSampler,
     build_dataloader,
     encode_corpus,
     encode_documents,
@@ -15,6 +16,7 @@ from llm_lab.data.dataset import (
     split_train_val,
     storage_dtype,
 )
+from llm_lab.data.sampler import ChunkedRandomSampler, ShuffledChunkSampler
 from llm_lab.data.tokenizer import BPETokenizer
 
 
@@ -179,6 +181,37 @@ def test_shuffled_dataloader_yields_batches() -> None:
 
     assert xb.shape == (8, 4)
     assert yb.shape == (8, 4)
+
+
+def test_chunked_random_sampler_yields_valid_indices() -> None:
+    sampler = ChunkedRandomSampler(1000, chunk_size=128)
+
+    indices = list(sampler)
+
+    assert len(indices) == 1000
+    assert len(sampler) == 1000
+    assert all(0 <= index < 1000 for index in indices)
+
+
+def test_chunked_random_sampler_mixes_globally() -> None:
+    # Regression guard: a bounded draw must already span the whole range, because
+    # our runs see far less than one epoch. (A shard/block shuffle fails this.)
+    sampler = ChunkedRandomSampler(1_000_000, chunk_size=4096)
+
+    indices = list(itertools.islice(iter(sampler), 4096))
+
+    assert max(indices) - min(indices) > 500_000
+
+
+def test_shuffled_chunk_sampler_is_clustered_early() -> None:
+    # Documents *why* ShuffledChunkSampler is not the default: with a large chunk
+    # it reads one contiguous region until that chunk is exhausted, so early
+    # training only ever sees a tiny slice of the corpus.
+    sampler = ShuffledChunkSampler(1_000_000, chunk_size=100_000)
+
+    indices = list(itertools.islice(iter(sampler), 5000))
+
+    assert max(indices) - min(indices) < 100_000  # confined to a single chunk
 
 
 def test_dataloader_batch_shapes() -> None:

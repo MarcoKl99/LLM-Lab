@@ -18,9 +18,12 @@
 # are identical in *tokens*; the only difference vs the baseline is the (slightly
 # noisier) batch. Gradient checkpointing would restore batch 64 if we want it.
 #
-# LR is 1e-4, not the baseline's 6e-4: at context 1024 the baseline LR diverged —
-# val loss climbed back toward ln(vocab) = 9.70 right after warmup ended. 3e-4
-# improved the train loss but val still worsened, so we step down again.
+# LR is the baseline's 6e-4. Earlier ctx-1024 runs at 6e-4 / 3e-4 / 1e-4 all
+# showed the same failure — train loss collapsing while val loss rose — but that
+# was NOT an LR problem: the old ShuffledChunkSampler read a single 1M-token chunk
+# for the first ~32k steps, so the model only ever saw ~1M unique positions and
+# memorised them. The sampler is now ChunkedRandomSampler (globally mixed every
+# step), so the LR is restored to the baseline value.
 #
 # Compare *bits-per-byte* against chinchilla/xl3 (xl3 @ context 128).
 # Reuses the already-prepared chinchilla token tensors — no prepare needed.
@@ -52,7 +55,7 @@ model:
 
 training:
   batch_size: 32
-  learning_rate: 1.0e-4
+  learning_rate: 6.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
   warmup_steps: 500
