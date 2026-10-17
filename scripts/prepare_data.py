@@ -9,8 +9,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from dotenv import load_dotenv, find_dotenv
+
 from llm_lab.config import load_config
 from llm_lab.data.prepare import prepare_data
+
+load_dotenv(find_dotenv(), override=True)
 
 
 def parse_args() -> argparse.Namespace:

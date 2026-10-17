@@ -146,3 +146,8 @@ Finally... Let's build a language model together! ;)
 - Do not follow symbolic links that point outside the project directory.
 - If a task requires access to files outside the project directory, stop and ask the user for explicit permission before proceeding.
 - Treat these restrictions as mandatory and do not bypass them under any circumstances.
+
+# Restrictions regarding Secrets
+
+- Do NOT read the .env file, neither directly nor by writing a script or invoking a command that will read its contents
+- You do NOT need any .env file for our tasks, do not attempt to read it

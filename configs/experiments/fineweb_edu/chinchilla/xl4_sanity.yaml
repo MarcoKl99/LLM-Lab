@@ -1,11 +1,11 @@
-# Sanity check for the ~354M Chinchilla model.
+# Sanity check for the ~355M xl4 model at context 1024.
 #
 # A short run (2,000 steps) on the *already-prepared* 97.7M-run data, to confirm
-# the architecture trains stably, fits in memory and hits the expected
-# throughput — cheap insurance before committing to the full ~863k-step run.
+# the architecture trains stably and fits in memory before the full ~217k-step
+# run (which needs its own ~8B-token corpus).
 #
-# Same model / tokenizer / LR as xl4.yaml; only the run length and the data
-# directory (the existing 3.3B-token slice) differ.
+# Same model / context / batch size / LR as xl4.yaml; only the run length and the
+# data directory (the existing 3.3B-token slice) differ.
 experiment: chinchilla
 run_name: xl4_sanity
 seed: 0
@@ -16,7 +16,7 @@ data:
   raw_dir: data/raw
   processed_dir: data/processed/fineweb_edu_chinchilla
   val_fraction: 0.01
-  context_window: 128
+  context_window: 1024
   tokenizer:
     vocab_size: 16384
     output: artifacts/tokenizer/fineweb_edu_chinchilla_bpe.json
@@ -31,7 +31,7 @@ model:
   tie_weights: true
 
 training:
-  batch_size: 64
+  batch_size: 32
   learning_rate: 3.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
@@ -39,7 +39,7 @@ training:
   max_steps: 2000
   eval_interval: 250
   eval_batches: 20
-  log_interval: 50
+  log_interval: 25
   grad_clip: 1.0
   checkpoint_dir: artifacts/runs
   resume: false

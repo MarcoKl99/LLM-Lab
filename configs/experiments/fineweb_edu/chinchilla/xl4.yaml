@@ -1,13 +1,22 @@
-# Chinchilla experiment, scaled up: the ~354M model, trained compute-optimally.
+# Chinchilla experiment, scaled up: the ~355M model, trained compute-optimally,
+# with the GPT-2-style 1024-token context window.
 #
-#   N      = 353,768,832 params  (21L / 1152d / 18H, vocab 16384, tied)
+#   N      = 354,801,024 params  (21L / 1152d / 18H, vocab 16384, tied, ctx 1024)
 #   k      = 20 tokens/param     (Chinchilla)
-#   D_seen = k * N               = 7,075,376,640 tokens
-#   steps  = D_seen / (batch*context) = 7,075,376,640 / 8192 = 863,693
+#   D_seen = k * N               = 7,096,020,480 tokens
+#   tokens/step = batch * context = 32 * 1024 = 32,768
+#   steps       = D / tokens/step = 7,096,020,480 / 32,768 = 216,553
+#   warmup      = 16,384,000 / 32,768 = 500   (same warmup *in tokens* as xl3)
 #   corpus >= D_seen             (prepare ~8B unique tokens, ~1 epoch)
 #
+# Context is 1024 — the context experiment (context/xl3_ctx1024) showed a ~6%
+# bits/byte gain over 128 at equal budget. Batch is 32 to fit a 40 GB A100: with
+# SDPA/FlashAttention the O(L^2) score matrix is never materialised, so memory is
+# dominated by the O(L) activations plus the LM-head logits (~27 GB at batch 32,
+# ~47 GB at batch 64).
+#
 # The tokenizer is *reused* from the 97.7M Chinchilla run (same corpus, same
-# vocab) so the two runs stay directly comparable. Token ids are stored int16.
+# vocab) so the runs stay comparable. Token ids are stored int16.
 experiment: chinchilla
 run_name: xl4
 seed: 0
@@ -18,9 +27,9 @@ data:
   raw_dir: data/raw
   processed_dir: data/processed/fineweb_edu_chinchilla_xl4
   val_fraction: 0.01
-  context_window: 128
+  context_window: 1024
   max_documents: 7500000
-  max_train_tokens: 7075376640
+  max_train_tokens: 7096020480
   tokenizer:
     vocab_size: 16384
     output: artifacts/tokenizer/fineweb_edu_chinchilla_bpe.json
@@ -35,15 +44,15 @@ model:
   tie_weights: true
 
 training:
-  batch_size: 64
+  batch_size: 32
   learning_rate: 3.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
-  warmup_steps: 2000
-  max_steps: 863693
-  eval_interval: 2000
+  warmup_steps: 500
+  max_steps: 216553
+  eval_interval: 500
   eval_batches: 20
-  log_interval: 100
+  log_interval: 25
   grad_clip: 1.0
   checkpoint_dir: artifacts/runs
   resume: true

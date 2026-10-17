@@ -13,6 +13,7 @@ dependencies = [
     "tokenizers",
     "pyyaml",
     "tqdm>=4.70.1",
+    "python-dotenv>=1.2.4",
 ]
 
 [tool.uv]
