@@ -4,16 +4,17 @@
 #   N      = 354,801,024 params  (21L / 1152d / 18H, vocab 16384, tied, ctx 1024)
 #   k      = 20 tokens/param     (Chinchilla)
 #   D_seen = k * N               = 7,096,020,480 tokens
-#   tokens/step = batch * context = 32 * 1024 = 32,768
-#   steps       = D / tokens/step = 7,096,020,480 / 32,768 = 216,553
-#   warmup      = 16,384,000 / 32,768 = 500   (same warmup *in tokens* as xl3)
+#   tokens/step = batch * context = 16 * 1024 = 16,384
+#   steps       = D / tokens/step = 7,096,020,480 / 16,384 = 433,106
+#   warmup      = 16,384,000 / 16,384 = 1,000   (same warmup *in tokens* as xl3)
 #   corpus >= D_seen             (prepare ~8B unique tokens, ~1 epoch)
 #
 # Context is 1024 — the context experiment (context/xl3_ctx1024) showed a ~6%
-# bits/byte gain over 128 at equal budget. Batch is 32 to fit a 40 GB A100: with
-# SDPA/FlashAttention the O(L^2) score matrix is never materialised, so memory is
-# dominated by the O(L) activations plus the LM-head logits (~27 GB at batch 32,
-# ~47 GB at batch 64).
+# bits/byte gain over 128 at equal budget.
+#
+# Batch is 16: at ctx 1024 the O(L) activations plus the LM-head logits for a
+# 355M model overflow a 40 GB A100 at batch 32 (observed CUDA OOM), so we halved
+# it. Halving the batch doubles the steps but leaves tokens seen unchanged.
 #
 # The tokenizer is *reused* from the 97.7M Chinchilla run (same corpus, same
 # vocab) so the runs stay comparable. Token ids are stored int16.
@@ -44,15 +45,15 @@ model:
   tie_weights: true
 
 training:
-  batch_size: 32
+  batch_size: 16
   learning_rate: 3.0e-4
   weight_decay: 0.0
   min_lr_ratio: 0.1
-  warmup_steps: 500
-  max_steps: 216553
-  eval_interval: 500
+  warmup_steps: 1000
+  max_steps: 433106
+  eval_interval: 1000
   eval_batches: 20
-  log_interval: 25
+  log_interval: 50
   grad_clip: 1.0
   checkpoint_dir: artifacts/runs
   resume: true
