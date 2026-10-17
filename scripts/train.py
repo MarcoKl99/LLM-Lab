@@ -74,6 +74,74 @@ def build_sample_fn(
     return sample_fn
 
 
+def print_run_summary(
+    config: dict[str, Any],
+    config_path: Path,
+    model: LanguageModel,
+    n_params: int,
+    device: torch.device,
+    vocab_size: int,
+    train_tokens: torch.Tensor,
+    val_tokens: torch.Tensor,
+    amp: bool,
+    amp_dtype: str,
+) -> None:
+    """Print the resolved experiment configuration just before training starts.
+
+    ``n_params`` is counted from the built model (``sum(p.numel() ...)`` over the
+    real parameters), so it reflects the architecture *and* the vocab/context
+    actually used — not a value read from the config.
+    """
+    data, training, model_cfg = config["data"], config["training"], config["model"]
+    context = data["context_window"]
+    batch = training["batch_size"]
+    tokens_per_step = batch * context
+    max_steps = training["max_steps"]
+    tokens_seen = max_steps * tokens_per_step
+    n_train = len(train_tokens)
+
+    def row(label: str, value: str) -> str:
+        return f" {label:<12}{value}"
+
+    precision = f"amp ({amp_dtype})" if amp else "fp32"
+    lines = [
+        "=" * 74,
+        f" {config['experiment']}/{config['run_name']}",
+        row("config", str(config_path)),
+        row("device", f"{device}   seed {config.get('seed', 0)}"),
+        row(
+            "model",
+            f"{model_cfg['type']}  {model_cfg['n_layer']}L / {model_cfg['n_head']}H"
+            f" / {model_cfg['n_embd']}d   vocab {vocab_size:,}   context {context:,}",
+        ),
+        row("parameters", f"{n_params:,}"),
+        row("corpus", f"{data.get('corpus', '?')}  ->  {data['processed_dir']}"),
+        row("tokens", f"train {n_train:,}   val {len(val_tokens):,}"),
+        row("batch", f"{batch}  ->  {tokens_per_step:,} tokens/step"),
+        row(
+            "steps",
+            f"{max_steps:,}  ->  {tokens_seen:,} tokens seen"
+            f"   ({tokens_seen / max(1, n_train):.2f} epochs,"
+            f" {tokens_seen / max(1, n_params):.2f} tok/param)",
+        ),
+        row(
+            "lr",
+            f"{training['learning_rate']:.2e}  (warmup {training['warmup_steps']:,},"
+            f" cosine -> {training['min_lr_ratio']}x)"
+            f"   wd {training.get('weight_decay', 0.0)}"
+            f"   clip {training.get('grad_clip')}",
+        ),
+        row(
+            "eval/log",
+            f"every {training['eval_interval']:,} /"
+            f" {training.get('log_interval', 10):,} steps   {precision}",
+        ),
+        row("run dir", str(run_dir_for(config))),
+        "=" * 74,
+    ]
+    print("\n".join(lines))
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -157,9 +225,17 @@ def main() -> None:
             amp_dtype=training.get("amp_dtype", "auto"),
         )
 
-        print(
-            f"run: {config['experiment']}/{config['run_name']}  "
-            f"device: {device}  params: {n_params:,}"
+        print_run_summary(
+            config,
+            args.config,
+            model,
+            n_params,
+            device,
+            vocab_size=tokenizer.vocab_size,
+            train_tokens=train_tokens,
+            val_tokens=val_tokens,
+            amp=args.amp or training.get("amp", False),
+            amp_dtype=training.get("amp_dtype", "auto"),
         )
 
         trainer.train(
